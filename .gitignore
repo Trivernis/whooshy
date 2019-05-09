@@ -2,3 +2,5 @@ package-lock
 bin
 .idea
 node_modules
+scripts/*
+tmp

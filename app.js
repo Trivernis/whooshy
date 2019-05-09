@@ -4,8 +4,9 @@ const createError = require('http-errors'),
       cookieParser = require('cookie-parser'),
       logger = require('morgan'),
 
-    indexRouter = require('./routes/index'),
-    usersRouter = require('./routes/users');
+  indexRouter = require('./routes/index'),
+  usersRouter = require('./routes/users'),
+  riddleRouter = require('./routes/riddle');
 
 let app = express();
 
@@ -21,6 +22,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use(/\/riddle(\/.*)?/, riddleRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

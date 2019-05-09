@@ -1,0 +1,10 @@
+html
+    head
+        title= title
+        link(rel='stylesheet', href='/stylesheets/style.css')
+        script(type='text/javascript', src='/javascripts/riddle-web.js')
+    body
+        h1 Riddle Reddit downloader
+        input(type='text' placeholder='subreddit' id='subreddit-input')
+        button(id='submit-download' onclick='submitDownload()') Download
+        div(id='download-list')
