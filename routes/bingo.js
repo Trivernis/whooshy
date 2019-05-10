@@ -30,29 +30,55 @@ class BingoSession {
         let id = user.id;
         this.users[id] = user;
     }
+
+    /**
+     * Graphql endpoint
+     * @param args {Object} - the arguments passed on the graphql interface
+     * @returns {any[]|*}
+     */
+    players(args) {
+        if (args.id)
+            return [this.users[args.id]];
+        else
+            return Object.values(this.users);
+    }
 }
 
 class BingoUser {
+    /**
+     * Bingo User class to store user information
+     */
     constructor() {
         this.id = generateBingoId();
         this.game = null;
         this.username = 'anonymous';
         this.grids = {};
-        this.submittedWords = {};
     }
 }
 
 class BingoWordField {
+    /**
+     * Represents a single bingo field with the word an the status.
+     * It also holds the base64-encoded word.
+     * @param word
+     */
     constructor(word) {
         this.word = word;
+        this.base64Word = Buffer.from(word).toString('base64');
         this.submitted = false;
     }
 }
 
 class BingoGrid {
+    /**
+     * Represents the bingo grid containing all the words.
+     * @param wordGrid
+     * @returns {BingoGrid}
+     */
     constructor(wordGrid) {
         this.wordGrid = wordGrid;
         this.fieldGrid = wordGrid.map(x => x.map(y => new BingoWordField(y)));
+        this.bingo = false;
         return this;
     }
 }
@@ -75,6 +101,20 @@ function shuffleArray(array) {
 }
 
 /**
+ * Inflates an array to a minimum Size
+ * @param array {Array} - the array to inflate
+ * @param minSize {Number} - the minimum size that the array needs to have
+ * @returns {Array}
+ */
+function inflateArray(array, minSize) {
+    let resultArray = array;
+    let iterations = Math.ceil(minSize/array.length);
+    for (let i = 0; i < iterations; i++)
+        resultArray = [...resultArray, ...resultArray];
+    return resultArray
+}
+
+/**
  * Generates an id for a subreddit download.
  * @returns {string}
  */
@@ -89,7 +129,7 @@ function generateBingoId() {
  * @returns {BingoGrid}
  */
 function generateWordGrid(dimensions, words) {
-    let shuffledWords = shuffleArray(words);
+    let shuffledWords = shuffleArray(inflateArray(words, dimensions[0]*dimensions[1]));
     let grid = [];
     for (let x = 0; x < dimensions[1]; x++) {
         grid[x] = [];
@@ -102,19 +142,17 @@ function generateWordGrid(dimensions, words) {
 
 /**
  * Sets the submitted parameter of the words in the bingo grid that match to true.
- * @param word {String}
- * @param bingoGrid {BingoGrid}
+ * @param base64Word {String} - base64 encoded bingo word
+ * @param bingoGrid {BingoGrid} - the grid where the words are stored
  * @returns {boolean}
  */
-function submitWord(word, bingoGrid) {
-    let results = bingoGrid.fieldGrid.find(x => x.find(y => (y.word === word))).find(x => x.word === word);
-
-    if (results) {
-        (results instanceof Array)? results.forEach(x => {x.submitted = true}): results.submitted = true;
-        checkBingo(bingoGrid);
-        return true;
-    }
-    return false;
+function toggleHeared(base64Word, bingoGrid) {
+    for (let row of bingoGrid.fieldGrid)
+        for (let field of row)
+            if (base64Word === field.base64Word)
+                field.submitted = !field.submitted;
+    checkBingo(bingoGrid);
+    return true;
 }
 
 /**
@@ -146,8 +184,10 @@ function checkBingo(bingoGrid) {
         bingoCheck = true;
         for (let field of row)
             bingoCheck = field && bingoCheck;
-        if (bingoCheck)
-            break;
+        if (bingoCheck) {
+            bingoGrid.bingo = true;
+            return true;
+        }
     }
     if (bingoCheck) {
         bingoGrid.bingo = true;
@@ -159,13 +199,16 @@ function checkBingo(bingoGrid) {
         bingoCheck = true;
         for (let j = 0; j < fg.length; j++)
             bingoCheck = fg[j][i] && bingoCheck;
-        if (bingoCheck)
-            break;
+        if (bingoCheck) {
+            bingoGrid.bingo = true;
+            return true;
+        }
     }
     if (bingoCheck) {
         bingoGrid.bingo = true;
         return true;
     }
+    bingoGrid.bingo = false;
     return false;
 }
 
@@ -191,7 +234,7 @@ router.get('/', (req, res) => {
             if (!bingoUser.grids[gameId]) {
                 bingoUser.grids[gameId] = generateWordGrid([bingoSession.gridSize, bingoSession.gridSize], bingoSession.words);
             }
-            res.render('bingo/bingo-game', {grid: bingoUser.grids[gameId].wordGrid, username: bingoUser.username});
+            res.render('bingo/bingo-game', {grid: bingoUser.grids[gameId].fieldGrid, username: bingoUser.username});
         } else {
             res.render('bingo/bingo-submit');
         }
@@ -226,12 +269,9 @@ router.post('/', (req, res) => {
     } else if (data.game) {
         res.send(bingoSessions[data.game]);
     } else if (data.bingoWord) {
-        if (!bingoUser.submittedWords[gameId])
-            bingoUser.submittedWords[gameId] = [];
-        bingoUser.submittedWords[gameId].push(data.bingoWord);
         console.log(typeof bingoUser.grids[gameId]);
         if (bingoUser.grids[gameId])
-            submitWord(data.bingoWord, bingoUser.grids[gameId]);
+            toggleHeared(data.bingoWord, bingoUser.grids[gameId]);
         res.send(bingoUser.grids[gameId]);
     } else if (data.bingo) {
         if (checkBingo(bingoUser.grids[gameId])) {
@@ -239,7 +279,7 @@ router.post('/', (req, res) => {
                 bingoSession.bingos.push(bingoUser.id);
             bingoSession.finished = true;
             setTimeout(() => { // delete the finished game after five minutes
-                delete bingoSessions[game.id];
+                delete bingoSessions[gameId];
             }, 360000);
             res.send(bingoSession);
         } else {
@@ -255,5 +295,69 @@ router.post('/', (req, res) => {
         })
     }
 });
+
+router.graphqlResolver = (req) => {
+    let bingoUser = req.session.bingoUser || new BingoUser();
+    let gameId = req.query.game || bingoUser.game || null;
+    let bingoSession = bingoSessions[gameId];
+    return {
+        // queries
+        gameInfo: (args) => {
+            if (args.id)
+                return bingoSessions[args.id];
+            else
+                return bingoSession;
+        },
+        checkBingo: (args) => {
+            return checkBingo(bingoUser.grids[gameId])
+        },
+        activeGrid: (args) => {
+            return bingoUser.grids[gameId];
+        },
+        // mutation
+        createGame: (args) => {
+            let words = args.words;
+            let size = args.size;
+            let game = new BingoSession(words, size);
+
+            bingoSessions[game.id] = game;
+
+            setTimeout(() => { // delete the game after one day
+                delete bingoSessions[game.id];
+            }, 86400000);
+
+            return game;
+        },
+        submitBingo: (args) => {
+            if (checkBingo(bingoUser.grids[gameId])) {
+                if (!bingoSession.bingos.includes(bingoUser.id))
+                    bingoSession.bingos.push(bingoUser.id);
+                bingoSession.finished = true;
+                setTimeout(() => { // delete the finished game after five minutes
+                    delete bingoSessions[gameId];
+                }, 360000);
+                return true;
+            } else {
+                return false;
+            }
+        },
+        toggleWord: (args) => {
+            if (args.word || args.base64Word) {
+                args.base64Word = args.base64Word || Buffer.from(args.word).toString('base-64');
+                if (bingoUser.grids[gameId])
+                    toggleHeared(args.base64Word, bingoUser.grids[gameId]);
+                return bingoUser.grids[gameId];
+            }
+        },
+        setUsername: (args) => {
+            if (args.username) {
+                bingoUser.username = args.username;
+                bingoSession.addUser(bingoUser);
+
+                return bingoUser;
+            }
+        }
+    };
+};
 
 module.exports = router;

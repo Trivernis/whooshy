@@ -1,0 +1,11 @@
+# import BingoMutation from 'bingo.graphql'
+# import BingoQuery from 'bingo.graphql'
+
+type Query {
+    time: String
+    bingo: BingoQuery
+}
+
+type Mutation {
+    bingo: BingoMutation
+}

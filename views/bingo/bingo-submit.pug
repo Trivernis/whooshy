@@ -2,8 +2,11 @@ extends  bingo-layout
 
 block content
     div(id='bingoform')
-        input(type='number', id='bingo-grid-size', class='number-input', value=3, min=1, max=8)
-        span x
-        span(id='bingo-grid-y', class='number-input') 3
-        button(onclick='submitBingoWords()') Submit
+        div(id='bingoheader')
+            div
+                input(type='number', id='bingo-grid-size', class='number-input', value=3, min=1, max=8)
+                span x
+                span(id='bingo-grid-y', class='number-input') 3
+            div(class='stretchDiv')
+                button(onclick='submitBingoWords()') Submit
         textarea(id='bingo-textarea', placeholder='Bingo Words')

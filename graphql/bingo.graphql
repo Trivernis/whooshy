@@ -1,0 +1,82 @@
+type BingoMutation {
+
+    # creates a game of bingo and returns the game id
+    createGame(words: [String!]!, size: Int = 3): BingoGame
+
+    # submit a bingo to the active game session
+    submitBingo: Boolean
+
+    # toggle a word (heared or not) on the sessions grid
+    toggleWord(word: String, base64Word: String): BingoGrid
+
+    # set the username of the current session
+    setUsername(username: String!): BingoUser
+}
+
+type BingoQuery {
+
+    # Returns the currently active bingo game
+    gameInfo(id: ID): BingoGame
+
+    # If there is a bingo in the fields.
+    checkBingo: Boolean
+
+    # Returns the grid of the active bingo game
+    activeGrid: BingoGrid
+}
+
+type BingoGame {
+
+    # the id of the bingo game
+    id: ID!
+
+    # the words used in the bingo game
+    words: [String]!
+
+    # the size of the square-grid
+    gridSize: Int
+
+    # an array of players active in the bingo game
+    players(id: ID): [BingoUser]
+
+    # the player-ids that scored a bingo
+    bingos: [String]!
+
+    # if the game has already finished
+    finished: Boolean
+}
+
+type BingoUser {
+
+    # the id of the bingo user
+    id: ID!
+
+    # the id of the currently active bingo game
+    game: ID
+
+    # the name of the user
+    username: String
+}
+
+type BingoGrid {
+
+    # the grid represented as string matrix
+    wordGrid: [[String]]!
+
+    # the grid represented as bingo field matrix
+    fieldGrid: [[BingoField]]!
+
+    # if there is a bingo
+    bingo: Boolean
+}
+
+type BingoField {
+
+    # the word contained in the bingo field
+    word: String
+
+    # if the word was already heared
+    submitted: Boolean!
+
+    base64Word: String
+}

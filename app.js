@@ -7,6 +7,9 @@ const createError = require('http-errors'),
       session = require('express-session'),
       fsx = require('fs-extra'),
       yaml = require('js-yaml'),
+      graphqlHTTP = require('express-graphql'),
+      { buildSchema } = require('graphql'),
+      { importSchema } = require('graphql-import'),
 
   indexRouter = require('./routes/index'),
   usersRouter = require('./routes/users'),
@@ -18,6 +21,12 @@ let settings = yaml.safeLoad(fsx.readFileSync('default-config.yaml'));
 if (fsx.existsSync('config.yaml'))
   Object.assign(settings, yaml.safeLoad(fsx.readFileSync('config.yaml')));
 
+let graphqlResolver = (request) => {
+  return {
+      time: Date.now(),
+      bingo:  bingoRouter.graphqlResolver(request)
+  }
+};
 let app = express();
 
 // view engine setup
@@ -33,7 +42,9 @@ app.use(session({
   secret: settings.sessions.secret,
   resave: false,
   saveUninitialized: true,
-  cookie: { maxAge: settings.sessions.maxAge }
+  cookie: {
+    expires: 10000000
+  }
 }));
 app.use('/sass', compileSass({
   root: './public/stylesheets/sass',
@@ -46,7 +57,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use(/\/riddle(\/.*)?/, riddleRouter);
-app.use(/\/bingo?.*/, bingoRouter);
+app.use('/bingo', bingoRouter);
+app.use('/graphql', graphqlHTTP(request => {
+  return {
+    schema: buildSchema(importSchema('./graphql/schema.graphql')),
+    rootValue: graphqlResolver(request),
+    context: {session: request.session},
+    graphiql: true
+  };
+}));
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -64,4 +83,6 @@ app.use(function(err, req, res, next) {
   res.render('error');
 });
 
-app.listen(settings.port);
+module.exports = app;
+
+//app.listen(settings.port);

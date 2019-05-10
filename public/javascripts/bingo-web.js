@@ -14,10 +14,15 @@ async function submitBingoWords() {
 }
 
 async function submitUsername() {
-    let username = document.querySelector('#username-input').value;
+    let unameInput = document.querySelector('#username-input');
+    let username = unameInput.value;
     let response = await postLocData({
         username: username
     });
+    unameInput.value = '';
+    unameInput.placeholder = username;
+    document.querySelector('#username-form').remove();
+    document.querySelector('.greyover').remove();
 
     console.log(response);
 }
@@ -31,12 +36,15 @@ async function submitWord(word) {
     let data = JSON.parse(response.data);
     for (let row of data.fieldGrid) {
         for (let field of row) {
-            document.querySelector(`.bingo-word-panel[b-word="${field.word}"]`)
-                .setAttribute('b-sub', field.submitted);
+            document.querySelectorAll(`.bingo-word-panel[b-word="${field.base64Word}"]`).forEach(x => {
+                x.setAttribute('b-sub', field.submitted);
+            });
         }
     }
     if (data.bingo) {
         document.querySelector('#bingo-button').setAttribute('class', '');
+    } else {
+        document.querySelector('#bingo-button').setAttribute('class', 'hidden');
     }
 }
 

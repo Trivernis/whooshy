@@ -9,13 +9,42 @@ textarea
   display: block
   margin: 1rem
   border-radius: 0
-  height: 50%
-  width: 50%
-  font-size: 15pt
+  font-size: 0.8em
+
+@media(max-device-width: 641px)
+  textarea
+    height: 80%
+    width: calc(100% - 2rem)
+  #words-container
+    width: 100%
+    height: 80%
+
+@media(min-device-width: 641px)
+  textarea
+    height: 80%
+    width: 50%
+  #words-container
+    width: 100%
+    height: 88%
 
 .number-input
   width: 4rem
   margin: 1rem
+
+#bingoheader
+  display: table
+  width: 100%
+
+  div
+    display: table-cell
+    text-align: start
+
+  .stretchDiv
+    text-align: end
+
+  button
+    max-width: calc(100% - 2rem)
+    padding: 0.7rem 2rem
 
 #words-container
   display: table
@@ -26,9 +55,18 @@ textarea
     .bingo-word-panel
       @include default-element
       display: table-cell
-      padding: 3rem
+      padding: 1rem
       transition-duration: 0.3s
       max-width: 15rem
+      border-radius: 0
+      border-collapse: collapse
+      text-align: center
+      vertical-align: middle
+
+      span
+        vertical-align: middle
+        display: inline-block
+        word-break: break-word
 
     .bingo-word-panel:hover
       background-color: darken($primary, 2%)
@@ -39,6 +77,32 @@ textarea
 
     .bingo-word-panel[b-sub="true"]
       background-color: forestgreen
+
+#bingo-button
+  transition-duration: 0.8s
+
+#username-form
+  @include default-element
+  position: fixed
+  display: block
+  height: calc(50% - 1rem)
+  width: calc(40% - 1rem)
+  top: 25%
+  left: 30%
+  text-align: center
+  vertical-align: middle
+  padding: 1rem
+  z-index: 1000
+
+  button
+    cursor: pointer
+
+  input[type='text']
+    cursor: text
+
+#username-form *
+  display: inline-block
+  vertical-align: middle
 
 .popup
   @include default-element

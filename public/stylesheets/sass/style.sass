@@ -2,16 +2,39 @@
 @import classes
 @import mixins
 
+@media (min-device-width: 320px)
+  html
+    font-size: 4.5vw
+
+@media (min-device-width: 481px)
+  html
+    font-size: 4vw
+
+@media (min-device-width: 641px)
+  html
+    font-size: 4vw
+
+@media (min-device-width: 961px)
+  html
+    font-size: 3vw
+
+@media (min-device-width: 1025px)
+  html
+    font-size: 2vw
+
+@media (min-device-width: 1281px)
+  html
+    font-size: 1.5vw
+
 body
   background-color: $primary
   color: $primarySurface
-  font-size: 18pt
   font-family: Arial, sans-serif
 
 button
   @include default-element
-  font-size: 20pt
-  padding: 10px
+  font-size: 1.2rem
+  padding: 0.7rem
   transition-duration: 0.2s
 
 button:hover
@@ -23,6 +46,6 @@ button:active
 
 input
   @include default-element
-  font-size: 20pt
+  font-size: 1.2rem
   background-color: lighten($primary, 10%)
-  padding: 9px
+  padding: 0.7rem
