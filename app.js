@@ -3,26 +3,50 @@ const createError = require('http-errors'),
       path = require('path'),
       cookieParser = require('cookie-parser'),
       logger = require('morgan'),
+      compileSass = require('express-compile-sass'),
+      session = require('express-session'),
+      fsx = require('fs-extra'),
+      yaml = require('js-yaml'),
 
   indexRouter = require('./routes/index'),
   usersRouter = require('./routes/users'),
-  riddleRouter = require('./routes/riddle');
+  riddleRouter = require('./routes/riddle'),
+  bingoRouter = require('./routes/bingo');
+
+let settings = yaml.safeLoad(fsx.readFileSync('default-config.yaml'));
+
+if (fsx.existsSync('config.yaml'))
+  Object.assign(settings, yaml.safeLoad(fsx.readFileSync('config.yaml')));
 
 let app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
+app.set('trust proxy', 1);
 
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use(session({
+  secret: settings.sessions.secret,
+  resave: false,
+  saveUninitialized: true,
+  cookie: { maxAge: settings.sessions.maxAge }
+}));
+app.use('/sass', compileSass({
+  root: './public/stylesheets/sass',
+  sourceMap: true,
+  watchFiles: true,
+  logToConsole: true
+}));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use(/\/riddle(\/.*)?/, riddleRouter);
+app.use(/\/bingo?.*/, bingoRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -40,4 +64,4 @@ app.use(function(err, req, res, next) {
   res.render('error');
 });
 
-module.exports = app;
+app.listen(settings.port);

@@ -1,24 +1,3 @@
-function postLocData(postBody) {
-    let request = new XMLHttpRequest();
-    return new Promise((res, rej) => {
-
-        request.onload = () => {
-            res({
-                status: request.status,
-                data: request.responseText
-            });
-        };
-
-        request.onerror = () => {
-            rej(request.error);
-        };
-
-        request.open('POST', '#', true);
-        request.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-        request.send(JSON.stringify(postBody));
-    });
-}
-
 async function startSubredditDownload(subredditName) {
     let data = await postLocData({
         subreddit: subredditName
@@ -45,13 +24,13 @@ async function refreshDownloadInfo(downloadId) {
     } else {
         let dlLink = document.createElement('a');
         dlLink.setAttribute('href', response.file);
-        dlLink.setAttribute('filename', `${subredditName}`);
-        for (let cNode of dlDiv.childNodes)
-            dlLink.appendChild(cNode);
+        dlLink.setAttribute('download', `${subredditName}`);
+        dlLink.innerHTML = dlDiv.innerHTML;
+        dlDiv.innerHTML = '';
         dlDiv.appendChild(dlLink);
         setTimeout(() => {
             dlDiv.remove();
-        }, 30000);
+        }, 300000);
     }
 }
 
@@ -66,13 +45,13 @@ async function submitDownload() {
     document.querySelector('#download-list').prepend(dlDiv);
 
     let subnameSpan = document.createElement('span');
-    subnameSpan.innerText = subredditName;
-    subnameSpan.setAttribute('class', 'subredditName');
+    subnameSpan.innerText = 'r/'+subredditName;
+    subnameSpan.setAttribute('class', 'subredditName tableRow');
     dlDiv.appendChild(subnameSpan);
 
     let dlStatusSpan = document.createElement('span');
     dlStatusSpan.innerText = response.status;
-    dlStatusSpan.setAttribute('class', 'downloadStatus');
+    dlStatusSpan.setAttribute('class', 'downloadStatus tableRow');
     dlDiv.appendChild(dlStatusSpan);
 
     await refreshDownloadInfo(response.id);

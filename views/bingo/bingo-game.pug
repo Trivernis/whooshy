@@ -1,0 +1,13 @@
+include bingo-layout
+
+block content
+    div(id='username-form')
+        input(type='text', id='username-input', placeholder='username', value=username)
+        button(onclick='submitUsername()') Set Username
+        button(id='bingo-button' onclick='submitBingo()', class='hidden') Bingo!
+    div(id='words-container')
+        each val in grid
+            div(class='bingo-word-row')
+                each word in val
+                    div(class='bingo-word-panel', onclick=`submitWord('${word}')`, b-word=word, b-sub='false')
+                        span= word

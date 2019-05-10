@@ -37,7 +37,7 @@ function startDownload(subreddit) {
         let dlWebPath = `/static/${downloadId}.zip`;
         let dl = new RedditDownload(dlWebPath);
 
-        dl.process = cproc.exec(`python -u riddle.py -o ../../public/static/${downloadId} -z --lzma ${subreddit}`,
+        dl.process = cproc.exec(`python3 -u riddle.py -o ../../public/static/${downloadId} -z --lzma ${subreddit}`,
             {cwd: './scripts/reddit-riddle', env: {PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: true}},
             (err, stdout) => {
                 if (err) {

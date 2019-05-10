@@ -12,6 +12,9 @@
     "fs-extra": "^7.0.1",
     "http-errors": "~1.6.3",
     "morgan": "~1.9.1",
-    "pug": "2.0.0-beta11"
+    "pug": "2.0.0-beta11",
+    "express-compile-sass": "latest",
+    "express-session": "latest",
+    "js-yaml": "latest"
   }
 }

@@ -1,0 +1,28 @@
+@import vars
+@import classes
+@import mixins
+
+body
+  background-color: $primary
+  color: $primarySurface
+  font-size: 18pt
+  font-family: Arial, sans-serif
+
+button
+  @include default-element
+  font-size: 20pt
+  padding: 10px
+  transition-duration: 0.2s
+
+button:hover
+  background-color: darken($primary, 2%)
+  cursor: pointer
+
+button:active
+  background-color: lighten($primary, 15%)
+
+input
+  @include default-element
+  font-size: 20pt
+  background-color: lighten($primary, 10%)
+  padding: 9px

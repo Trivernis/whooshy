@@ -1,8 +1,9 @@
 html
     head
         title= title
-        link(rel='stylesheet', href='/stylesheets/style.css')
+        include includes/head.pug
         script(type='text/javascript', src='/javascripts/riddle-web.js')
+        link(rel='stylesheet', href='/sass/riddle/style.sass')
     body
         h1 Riddle Reddit downloader
         input(type='text' placeholder='subreddit' id='subreddit-input')
