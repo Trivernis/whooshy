@@ -10,8 +10,10 @@ const http = require('http');
 const yaml = require('js-yaml');
 const fsx = require('fs-extra');
 
+let settings = {};
+
 try {
-  let settings = yaml.safeLoad(fsx.readFileSync('default-config.yaml'));
+  settings = yaml.safeLoad(fsx.readFileSync('default-config.yaml'));
 
   if (fsx.existsSync('config.yaml'))
     Object.assign(settings, yaml.safeLoad(fsx.readFileSync('config.yaml')));
