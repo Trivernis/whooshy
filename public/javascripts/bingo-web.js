@@ -76,8 +76,9 @@ async function createFollowup() {
  */
 async function submitUsername() {
     let unameInput = document.querySelector('#username-input');
-    let username = unameInput.value;
-    let response = await postGraphqlQuery(`
+    let username = unameInput.value.replace(/^\s+|\s+$/g, '');
+    if (username.length > 1 && username !== 'anonymous') {
+        let response = await postGraphqlQuery(`
     mutation($username:String!) {
       bingo {
         setUsername(input: {username: $username}) {
@@ -86,16 +87,19 @@ async function submitUsername() {
         }
       }
     }`, {
-        username: username
-    },`/graphql?game=${getGameParam()}`);
-    if (response.status === 200) {
-        unameInput.value = '';
-        unameInput.placeholder = response.data.username;
-        document.querySelector('#username-form').remove();
-        document.querySelector('.greyover').remove();
+            username: username
+        },`/graphql?game=${getGameParam()}`);
+        if (response.status === 200) {
+            unameInput.value = '';
+            unameInput.placeholder = response.data.username;
+            document.querySelector('#username-form').remove();
+            document.querySelector('.greyover').remove();
+        } else {
+            showError(`Failed to submit username. HTTP Error: ${response.status}`);
+            console.error(response);
+        }
     } else {
-        showError(`Failed to submit username. HTTP Error: ${response.status}`);
-        console.error(response);
+        showError('You need to provide a username (minimum 2 characters)!');
     }
 }
 
@@ -306,12 +310,10 @@ function addChatMessage(messageObject) {
     if (messageObject.type === "USER") {
         msgSpan.innerHTML = `
         <span class="chatUsername">${messageObject.username}:</span>
-        <span class="chatMessageContent">${messageObject.htmlContent}</span>
-        `;
+        <span class="chatMessageContent">${messageObject.htmlContent}</span>`;
     } else {
         msgSpan.innerHTML = `
-        <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>
-        `;
+        <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
     }
     let chatContent = document.querySelector('#chat-content');
     chatContent.appendChild(msgSpan);
@@ -334,6 +336,8 @@ window.addEventListener("unhandledrejection", function(promiseRejectionEvent) {
 });
 
 window.onload = () => {
+    if (document.querySelector('#chat-container'))
+        refresh();
     if (window && !document.querySelector('#bingoform')) {
         refrInterval = setInterval(refresh, 1000);      // global variable to clear
     }

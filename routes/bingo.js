@@ -33,6 +33,9 @@ class BingoSession {
     addUser(user) {
         let id = user.id;
         this.users[id] = user;
+        if (user.username !== 'anonymous') {
+            this.chatMessages.push(new BingoChatMessage(`**${user.username}** joined.`, "INFO"));
+        }
     }
 
     /**
@@ -57,7 +60,7 @@ class BingoSession {
         this.followup = followup.id;
         bingoSessions[followup.id] = followup;
         followup.chatMessages = this.chatMessages;
-        followup.chatMessages.push(new BingoChatMessage('--- Rematch ---', "INFO"));
+        followup.chatMessages.push(new BingoChatMessage('**Rematch**', "INFO"));
         return followup;
     }
 
@@ -84,7 +87,7 @@ class BingoSession {
      */
     sendToggleInfo(base64Word, bingoUser) {
         let word = Buffer.from(base64Word, 'base64').toString();
-        let toggleMessage = new BingoChatMessage(`${bingoUser.username} toggled phrase "${word}"`, "INFO");
+        let toggleMessage = new BingoChatMessage(`**${bingoUser.username}** toggled phrase "${word}".`, "INFO");
         this.chatMessages.push(toggleMessage);
     }
 }
@@ -343,6 +346,7 @@ router.graphqlResolver = (req, res) => {
             });
             let size = input.size;
             if (words.length > 0 && size < 10 && size > 0) {
+                words = words.slice(0, 10000);      // only allow up to 10000 words in the bingo
                 let game = new BingoSession(words, size);
 
                 bingoSessions[game.id] = game;
@@ -404,7 +408,7 @@ router.graphqlResolver = (req, res) => {
             }
         },
         sendChatMessage: ({input}) => {
-            input.message = replaceTagSigns(input.message);
+            input.message = replaceTagSigns(input.message).substring(0, 250);
             if (bingoSession && input.message) {
                 let userMessage = new BingoChatMessage(input.message, 'USER', bingoUser.username);
                 bingoSession.chatMessages.push(userMessage);

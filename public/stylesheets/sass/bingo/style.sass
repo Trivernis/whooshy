@@ -23,14 +23,17 @@ textarea
     grid-template-columns: 0 100% !important
     grid-template-rows: 10% 80% 10% !important
 
-    #players-container div
-      display: none
+    #players-container #chat-container
+      display: none !important
       padding: 0
+
   #username-form
     width: calc(100% - 2rem) !important
     left: 0 !important
+
   #hide-player-container-button
     display: none
+
   .popup
     width: calc(100% - 2rem) !important
     left: 0 !important
@@ -173,6 +176,7 @@ textarea
     height: 100%
     border: 1px solid $inactive
     margin: 0 0.5rem
+    word-break: break-word
 
     #chat-content
       height: calc(100% - 3.5rem)

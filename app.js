@@ -5,6 +5,7 @@ const createError = require('http-errors'),
       logger = require('morgan'),
       compileSass = require('express-compile-sass'),
       session = require('express-session'),
+      SQLiteStore = require('connect-sqlite3')(session),
       fsx = require('fs-extra'),
       yaml = require('js-yaml'),
       graphqlHTTP = require('express-graphql'),
@@ -39,6 +40,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(session({
+  store: new SQLiteStore,
   secret: settings.sessions.secret,
   resave: false,
   saveUninitialized: true,

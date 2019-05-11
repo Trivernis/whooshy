@@ -4,7 +4,7 @@ block content
     if username === 'anonymous'
         div(class='greyover')
         div(id='username-form', onkeypress='submitOnEnter(event, submitUsername)')
-            input(type='text', id='username-input', placeholder=username)
+            input(type='text', id='username-input', placeholder=username, maxlength="30")
             span Maximum is 30 characters.
             button(onclick='submitUsername()') Set Username
     div(id='content-container')
@@ -15,7 +15,7 @@ block content
                     span(class='player-name-span')= player.username
         div(id='chat-container')
             div(id='chat-content')
-            input(id='chat-input' type='text', placeholder='chat', onkeypress='submitOnEnter(event, sendChatMessage)')
+            input(id='chat-input' type='text', placeholder='chat', onkeypress='submitOnEnter(event, sendChatMessage)' maxlength="250")
         div(id='words-container')
             each val in grid
                 div(class='bingo-word-row')
