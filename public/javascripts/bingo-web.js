@@ -11,44 +11,62 @@ function getGameParam() {
 }
 
 /**
- * Toggles the visiblity of the player.container
- */
-function togglePlayerContainer() {
-    let playerContainer = document.querySelector('#players-container');
-    if (playerContainer.getAttribute('class') === 'hidden')
-        playerContainer.setAttribute('class', '');
-    else
-        playerContainer.setAttribute('class', 'hidden');
-}
-
-/**
  * Submits the bingo words to create a game
  * @returns {Promise<void>}
  */
 async function submitBingoWords() {
     let textContent = document.querySelector('#bingo-textarea').value;
-    let words = textContent.replace(/[<>]/g, '').split('\n');
-    let size = document.querySelector('#bingo-grid-size').value;
+    let words = textContent.replace(/[<>]/g, '').split('\n').filter((el) => {
+        return (!!el && el.length > 0) // remove empty strings and non-types from word array
+    });
+    if (words.length === 0) {
+        showError('You need to provide at least one word!');
+    } else {
+        let size = document.querySelector('#bingo-grid-size').value;
 
+        let response = await postGraphqlQuery(`
+        mutation($words:[String!]!, $size:Int!) {
+          bingo {
+            createGame(input: {
+              words: $words,
+              size: $size
+            }) {
+              id
+            }
+          }
+        }`, {
+            words: words,
+            size: Number(size)
+        }, `/graphql?game=${getGameParam()}`);
+        if (response.status === 200) {
+            let gameid = response.data.bingo.createGame.id;
+            insertParam('game', gameid);
+        } else {
+            showError(`Failed to create game. HTTP Error: ${response.status}`);
+            console.error(response)
+        }
+    }
+}
+
+/**
+ * Gets the followup bingoSession and redirects to it
+ * @returns {Promise<void>}
+ */
+async function createFollowup() {
     let response = await postGraphqlQuery(`
-    mutation($words:[String!]!, $size:Int!) {
+    mutation {
       bingo {
-        createGame(input: {
-          words: $words,
-          size: $size
-        }) {
+        createFollowupGame {
           id
         }
       }
-    }`, {
-        words: words,
-        size: Number(size)
-    }, `/graphql?game=${getGameParam()}`);
-    if (response.status === 200) {
-        let gameid = response.data.bingo.createGame.id;
+    }`,null,`/graphql?game=${getGameParam()}`);
+    if (response.status === 200 && response.data.bingo.createFollowupGame) {
+        let gameid = response.data.bingo.createFollowupGame.id;
         insertParam('game', gameid);
     } else {
-        console.error(response)
+        showError(`Failed to create follow up game. HTTP Error: ${response.status}`);
+        console.error(response);
     }
 }
 
@@ -76,6 +94,7 @@ async function submitUsername() {
         document.querySelector('#username-form').remove();
         document.querySelector('.greyover').remove();
     } else {
+        showError(`Failed to submit username. HTTP Error: ${response.status}`);
         console.error(response);
     }
 }
@@ -116,6 +135,7 @@ async function submitWord(word) {
             document.querySelector('#bingo-button').setAttribute('class', 'hidden');
         }
     } else {
+        showError(`Failed to submit word. HTTP Error: ${response.status}`);
         console.error(response);
     }
 }
@@ -146,6 +166,7 @@ async function submitBingo() {
             clearInterval(refrInterval)
         }
     } else {
+        showError(`Failed to submit Bingo. HTTP Error: ${response.status}`);
         console.error(response);
     }
 }
@@ -196,6 +217,7 @@ async function refresh() {
         if (response.status === 400)
             clearInterval(refrInterval);
         console.error(response);
+        showError('No session found. Are cookies allowed?');
     }
 }
 
@@ -206,17 +228,36 @@ async function refresh() {
 function displayWinner(name) {
     let winnerDiv = document.createElement('div');
     let greyoverDiv = document.createElement('div');
-    let winnerSpan = document.createElement('span');
     winnerDiv.setAttribute('class', 'popup');
-    winnerDiv.setAttribute('style', 'cursor: pointer');
+    winnerDiv.innerHTML = `
+        <h1>${name} has won!</h1>
+        <button id="btn-again" onclick="createFollowup()">Again!</button>
+        <button id="btn-leave" onclick="window.location.reload()">Leave</button>
+    `;
     greyoverDiv.setAttribute('class', 'greyover');
-    winnerSpan.innerText = `${name} has won!`;
-    winnerDiv.appendChild(winnerSpan);
-    winnerDiv.onclick = () => {
-        window.location.reload();
-    };
+    //winnerDiv.onclick = () => {
+    //    window.location.reload();
+    //};
     document.body.append(greyoverDiv);
     document.body.appendChild(winnerDiv);
+}
+
+/**
+ * Shows an error Message.
+ * @param errorMessage
+ */
+function showError(errorMessage) {
+    let errorDiv = document.createElement('div');
+    errorDiv.setAttribute('class', 'errorDiv');
+    errorDiv.innerHTML = `<span>${errorMessage}</span>`;
+    let contCont = document.querySelector('#content-container');
+    if (contCont)
+        contCont.appendChild(errorDiv);
+    else
+        alert(errorMessage);
+    setTimeout(() => {
+        errorDiv.remove();
+    }, 10000);
 }
 
 /**
@@ -229,6 +270,11 @@ function submitOnEnter(event, func) {
         func();
 }
 
+window.addEventListener("unhandledrejection", function(promiseRejectionEvent) {
+    promiseRejectionEvent.promise.catch(err => console.log(err));
+    showError('Connection problems... Is the server down?');
+});
+
 window.onload = () => {
     if (window && !document.querySelector('#bingoform')) {
         refrInterval = setInterval(refresh, 1000);      // global variable to clear
@@ -237,5 +283,6 @@ window.onload = () => {
     document.querySelector('#bingo-grid-y').innerText = gridSizeElem.value;
     gridSizeElem.oninput = () => {
         document.querySelector('#bingo-grid-y').innerText = gridSizeElem.value;
+        document.querySelector('#word-count').innerText = `Please provide at least ${gridSizeElem.value**2} phrases:`;
     };
 };

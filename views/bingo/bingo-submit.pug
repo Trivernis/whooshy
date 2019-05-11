@@ -4,9 +4,10 @@ block content
     div(id='bingoform')
         div(id='bingoheader')
             div
-                input(type='number', id='bingo-grid-size', class='number-input', value=3, min=1, max=8, onkeypress='submitOnEnter(event, submitBingoWords)')
+                input(type='number', id='bingo-grid-size', class='number-input', value=3, min=1, max=7, onkeypress='submitOnEnter(event, submitBingoWords)')
                 span x
                 span(id='bingo-grid-y', class='number-input') 3
             div(class='stretchDiv')
                 button(onclick='submitBingoWords()') Submit
+        span(id='word-count') Please provide at least 9 phrases:
         textarea(id='bingo-textarea', placeholder='Bingo Words')

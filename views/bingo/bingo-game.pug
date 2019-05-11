@@ -5,19 +5,19 @@ block content
         div(class='greyover')
         div(id='username-form', onkeypress='submitOnEnter(event, submitUsername)')
             input(type='text', id='username-input', placeholder=username)
+            span Maximum is 30 characters.
             button(onclick='submitUsername()') Set Username
     div(id='content-container')
-        button(id='hide-player-container-button', onclick='togglePlayerContainer()') Toggle Player View
-        div(id='row-1')
-            div(id='players-container')
-                each player in players
-                    div(class='player-container', b-pid=`${player.id}`)
-                        span(class='player-name-span')= player.username
-            div(id='words-container')
-                each val in grid
-                    div(class='bingo-word-row')
-                        each field in val
-                            div(class='bingo-word-panel', onclick=`submitWord('${field.base64Word}')`, b-word=field.base64Word, b-sub=`${field.submitted}`)
-                                span= field.word
+        div(id='players-container')
+            h1 Players
+            each player in players
+                div(class='player-container', b-pid=`${player.id}`)
+                    span(class='player-name-span')= player.username
+        div(id='words-container')
+            each val in grid
+                div(class='bingo-word-row')
+                    each field in val
+                        div(class='bingo-word-panel', onclick=`submitWord('${field.base64Word}')`, b-word=field.base64Word, b-sub=`${field.submitted}`)
+                            span= field.word
         div(id='button-container')
             button(id='bingo-button' onclick='submitBingo()', class='hidden') Bingo!

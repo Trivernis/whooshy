@@ -11,6 +11,9 @@ type BingoMutation {
 
     # set the username of the current session
     setUsername(input: UsernameInput): BingoUser
+
+    # recreates the active game to a follow-up
+    createFollowupGame: BingoGame
 }
 
 type BingoQuery {
@@ -74,6 +77,9 @@ type BingoGame {
 
     # if the game has already finished
     finished: Boolean
+
+    # the id of the followup game if it has been created
+    followup: ID
 }
 
 type BingoUser {

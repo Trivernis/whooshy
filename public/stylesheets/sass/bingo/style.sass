@@ -1,15 +1,16 @@
 @import ../mixins
 @import ../vars
 
-button
-  margin: 1rem
-
 textarea
   @include default-element
   display: block
   margin: 1rem
   border-radius: 0
   font-size: 0.8em
+  background-color: lighten($primary, 15%)
+
+#word-count
+  margin: 1rem
 
 @media(max-device-width: 641px)
   textarea
@@ -18,14 +19,20 @@ textarea
   #words-container
     width: 100%
     height: 80%
-  #content-container #row-1 #players-container div
-    display: none
-    padding: 0
+  #content-container
+    grid-template-columns: 0 100% !important
+    grid-template-rows: 10% 80% 10% !important
+    #players-container div
+      display: none
+      padding: 0
   #username-form
     width: calc(100% - 2rem) !important
     left: 0 !important
   #hide-player-container-button
     display: none
+  .popup
+    width: calc(100% - 2rem) !important
+    left: 0 !important
 
 @media(min-device-width: 641px)
   textarea
@@ -70,11 +77,13 @@ textarea
       border-collapse: collapse
       text-align: center
       vertical-align: middle
+      user-select: none
 
       span
         vertical-align: middle
         display: inline-block
         word-break: break-word
+        user-select: none
 
     .bingo-word-panel:hover
       background-color: darken($primary, 2%)
@@ -116,35 +125,83 @@ textarea
   vertical-align: middle
 
 #content-container
-  display: table
+  display: grid
+  grid-template-columns: 20% 80%
+  grid-template-rows: 10% 80% 10%
   height: 100%
   width: 100%
 
-  #row-1
-    display: table-row
-    height: 85%
+  #button-container
+    grid-column-start: 1
+    grid-column-end: 1
+    grid-row-start: 1
+    grid-row-end: 1
+    display: grid
+    margin: 1rem
+    font-size: inherit
 
-    #players-container
+    button
+      font-size: inherit
+      padding: 0
+
+  #players-container
+    padding: 0 0.5rem
+    transition-duration: 1s
+    grid-column-start: 1
+    grid-column-end: 1
+    grid-row-start: 2
+    grid-row-end: 2
+
+    h1
+      margin: 0 0 1rem 0
+
+  #words-container
+    grid-column-start: 2
+    grid-column-end: 2
+    grid-row-start: 2
+    grid-row-end: 2
+
+  .errorDiv
+    grid-column-start: 2
+    grid-column-end: 2
+    grid-row-start: 3
+    grid-row-end: 3
+    background-color: $error
+    text-align: center
+    margin: 0.75rem 0
+    border-radius: 1rem
+    height: calc(100% - 1.5rem)
+    display: table
+    span
       display: table-cell
-      padding: 0.5rem
-      transition-duration: 1s
+      font-size: 1.8rem
+      vertical-align: middle
 
-      .player-container
-        @include default-element
-        padding: 0.5rem
-        max-width: 14rem
+.player-container
+  @include default-element
+  padding: 0.5rem
+  margin: 0 0 1rem 0
+  max-width: 14rem
+  border-radius: 0
+  color: $primarySurface
+  border: 1px solid $inactive
 
 .popup
   @include default-element
-  height: 5%
-  width: 40%
-  top: 47.5%
+  position: fixed
+  display: grid
+  height: calc(50% - 1rem)
+  width: calc(40% - 1rem)
+  top: 25%
   left: 30%
   text-align: center
-  transition-duration: 1s
-  span
-    margin: 2%
-    display: block
+  vertical-align: middle
+  padding: 1rem
+  z-index: 1000
+
+  button
+    margin: 1rem
+    font-size: 2rem
 
 .greyover
   width: 100%
@@ -153,4 +210,4 @@ textarea
   z-index: 99
   top: 0
   left: 0
-  background-color: transparentize($primary, 0.5)
+  background-color: rgba(0,0,0,0.5)

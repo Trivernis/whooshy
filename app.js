@@ -21,10 +21,10 @@ let settings = yaml.safeLoad(fsx.readFileSync('default-config.yaml'));
 if (fsx.existsSync('config.yaml'))
   Object.assign(settings, yaml.safeLoad(fsx.readFileSync('config.yaml')));
 
-let graphqlResolver = (request) => {
+let graphqlResolver = (request, response) => {
   return {
       time: Date.now(),
-      bingo:  bingoRouter.graphqlResolver(request)
+      bingo:  bingoRouter.graphqlResolver(request, response)
   }
 };
 let app = express();
@@ -58,10 +58,10 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use(/\/riddle(\/.*)?/, riddleRouter);
 app.use('/bingo', bingoRouter);
-app.use('/graphql', graphqlHTTP(request => {
+app.use('/graphql', graphqlHTTP((request, response) => {
   return {
     schema: buildSchema(importSchema('./graphql/schema.graphql')),
-    rootValue: graphqlResolver(request),
+    rootValue: graphqlResolver(request, response),
     context: {session: request.session},
     graphiql: true
   };

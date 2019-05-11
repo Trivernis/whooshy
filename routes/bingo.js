@@ -20,6 +20,7 @@ class BingoSession {
         this.users = {};
         this.bingos = [];   // array with the users that already had bingo
         this.finished = false;
+        this.followup = null;
     }
 
     /**
@@ -42,6 +43,17 @@ class BingoSession {
             return [this.users[input.id]];
         else
             return Object.values(this.users);
+    }
+
+    /**
+     * Creates a followup BingoSession
+     * @returns {BingoSession}
+     */
+    createFollowup() {
+        let followup = new BingoSession(this.words, this.gridSize);
+        this.followup = followup.id;
+        bingoSessions[followup.id] = followup;
+        return followup;
     }
 }
 
@@ -109,7 +121,7 @@ function shuffleArray(array) {
  */
 function inflateArray(array, minSize) {
     let resultArray = array;
-    let iterations = Math.ceil(minSize/array.length);
+    let iterations = Math.ceil(minSize/array.length)-1;
     for (let i = 0; i < iterations; i++)
         resultArray = [...resultArray, ...resultArray];
     return resultArray
@@ -248,7 +260,7 @@ router.get('/', (req, res) => {
     }
 });
 
-router.graphqlResolver = (req) => {
+router.graphqlResolver = (req, res) => {
     let bingoUser = req.session.bingoUser || new BingoUser();
     let gameId = req.query.game || bingoUser.game || null;
     let bingoSession = bingoSessions[gameId];
@@ -268,17 +280,23 @@ router.graphqlResolver = (req) => {
         },
         // mutation
         createGame: ({input}) => {
-            let words = input.words;
+            let words = input.words.filter((el) => { // remove empty strings and non-types from word array
+                return (!!el && el.length > 0)
+            });
             let size = input.size;
-            let game = new BingoSession(words, size);
+            if (words.length > 0 && size < 10 && size > 0) {
+                let game = new BingoSession(words, size);
 
-            bingoSessions[game.id] = game;
+                bingoSessions[game.id] = game;
 
-            setTimeout(() => { // delete the game after one day
-                delete bingoSessions[game.id];
-            }, 86400000);
-
-            return game;
+                setTimeout(() => { // delete the game after one day
+                    delete bingoSessions[game.id];
+                }, 86400000);
+                return game;
+            } else {
+                res.status(400);
+                return null;
+            }
         },
         submitBingo: () => {
             if (checkBingo(bingoUser.grids[gameId])) {
@@ -296,19 +314,34 @@ router.graphqlResolver = (req) => {
         toggleWord: ({input}) => {
             if (input.word || input.base64Word) {
                 input.base64Word = input.base64Word || Buffer.from(input.word).toString('base-64');
-                if (bingoUser.grids[gameId])
+                if (bingoUser.grids[gameId]) {
                     toggleHeared(input.base64Word, bingoUser.grids[gameId]);
-                return bingoUser.grids[gameId];
+                    return bingoUser.grids[gameId];
+                } else {
+                    res.status(400);
+                }
+            } else {
+                res.status(400);
             }
         },
         setUsername: ({input}) => {
             if (input.username) {
-                bingoUser.username = input.username;
+                bingoUser.username = input.username.substring(0, 30); // only allow 30 characters
 
                 if (bingoSession)
                     bingoSession.addUser(bingoUser);
 
                 return bingoUser;
+            }
+        },
+        createFollowupGame: () => {
+            if (bingoSession) {
+                if (!bingoSession.followup)
+                    return bingoSession.createFollowup();
+                else
+                    return bingoSessions[bingoSession.followup];
+            } else {
+                res.status(400);
             }
         }
     };
