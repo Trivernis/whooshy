@@ -3,13 +3,21 @@ include bingo-layout
 block content
     if username === 'anonymous'
         div(class='greyover')
-        div(id='username-form')
+        div(id='username-form', onkeypress='submitOnEnter(event, submitUsername)')
             input(type='text', id='username-input', placeholder=username)
             button(onclick='submitUsername()') Set Username
-    div(id='words-container')
-        each val in grid
-            div(class='bingo-word-row')
-                each field in val
-                    div(class='bingo-word-panel', onclick=`submitWord('${field.base64Word}')`, b-word=field.base64Word, b-sub='false')
-                        span= field.word
-    button(id='bingo-button' onclick='submitBingo()', class='hidden') Bingo!
+    div(id='content-container')
+        button(id='hide-player-container-button', onclick='togglePlayerContainer()') Toggle Player View
+        div(id='row-1')
+            div(id='players-container')
+                each player in players
+                    div(class='player-container', b-pid=`${player.id}`)
+                        span(class='player-name-span')= player.username
+            div(id='words-container')
+                each val in grid
+                    div(class='bingo-word-row')
+                        each field in val
+                            div(class='bingo-word-panel', onclick=`submitWord('${field.base64Word}')`, b-word=field.base64Word, b-sub=`${field.submitted}`)
+                                span= field.word
+        div(id='button-container')
+            button(id='bingo-button' onclick='submitBingo()', class='hidden') Bingo!

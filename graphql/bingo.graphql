@@ -1,28 +1,58 @@
 type BingoMutation {
 
     # creates a game of bingo and returns the game id
-    createGame(words: [String!]!, size: Int = 3): BingoGame
+    createGame(input: CreateGameInput!): BingoGame
 
     # submit a bingo to the active game session
-    submitBingo: Boolean
+    submitBingo: BingoGame
 
     # toggle a word (heared or not) on the sessions grid
-    toggleWord(word: String, base64Word: String): BingoGrid
+    toggleWord(input: WordInput!): BingoGrid
 
     # set the username of the current session
-    setUsername(username: String!): BingoUser
+    setUsername(input: UsernameInput): BingoUser
 }
 
 type BingoQuery {
 
     # Returns the currently active bingo game
-    gameInfo(id: ID): BingoGame
+    gameInfo(input: IdInput): BingoGame
 
     # If there is a bingo in the fields.
     checkBingo: Boolean
 
     # Returns the grid of the active bingo game
     activeGrid: BingoGrid
+}
+
+input CreateGameInput {
+
+    # the words used to fill the bingo grid
+    words: [String!]!
+
+    # the size of the bingo grid
+    size: Int! = 3
+}
+
+input WordInput {
+
+    # the normal word string
+    word: String
+
+    # the base64-encoded word
+    base64Word: String
+}
+
+input UsernameInput {
+
+    # the username string
+    username: String!
+}
+
+input IdInput {
+
+    # the id
+    id: ID!
 }
 
 type BingoGame {
@@ -37,7 +67,7 @@ type BingoGame {
     gridSize: Int
 
     # an array of players active in the bingo game
-    players(id: ID): [BingoUser]
+    players(input: IdInput): [BingoUser]
 
     # the player-ids that scored a bingo
     bingos: [String]!
@@ -78,5 +108,6 @@ type BingoField {
     # if the word was already heared
     submitted: Boolean!
 
+    # the base64 encoded word
     base64Word: String
 }

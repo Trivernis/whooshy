@@ -37,8 +37,9 @@ class BingoSession {
      * @returns {any[]|*}
      */
     players(args) {
-        if (args.id)
-            return [this.users[args.id]];
+        let input = args? args.input : null;
+        if (input && input.id)
+            return [this.users[input.id]];
         else
             return Object.values(this.users);
     }
@@ -224,7 +225,7 @@ router.use((req, res, next) => {
 router.get('/', (req, res) => {
     let bingoUser = req.session.bingoUser;
     if (req.query.game) {
-        let gameId = req.query.game;
+        let gameId = req.query.game || bingoUser.game;
 
         if (bingoSessions[gameId] && !bingoSessions[gameId].finished) {
             bingoUser.game = gameId;
@@ -234,65 +235,16 @@ router.get('/', (req, res) => {
             if (!bingoUser.grids[gameId]) {
                 bingoUser.grids[gameId] = generateWordGrid([bingoSession.gridSize, bingoSession.gridSize], bingoSession.words);
             }
-            res.render('bingo/bingo-game', {grid: bingoUser.grids[gameId].fieldGrid, username: bingoUser.username});
+            res.render('bingo/bingo-game', {
+                grid: bingoUser.grids[gameId].fieldGrid,
+                username: bingoUser.username,
+                players: bingoSession.players()
+            });
         } else {
             res.render('bingo/bingo-submit');
         }
     } else {
         res.render('bingo/bingo-submit');
-    }
-});
-
-router.post('/', (req, res) => {
-    let data = req.body;
-    let gameId = req.query.game;
-    let bingoUser = req.session.bingoUser;
-    let bingoSession = bingoSessions[gameId];
-
-    if (data.bingoWords) {
-        let words = data.bingoWords;
-        let size = data.size;
-        let game = new BingoSession(words, size);
-
-        bingoSessions[game.id] = game;
-
-        setTimeout(() => { // delete the game after one day
-            delete bingoSessions[game.id];
-        }, 86400000);
-
-        res.send(game);
-    } else if (data.username) {
-        bingoUser.username = data.username;
-        bingoSessions[gameId].addUser(bingoUser);
-
-        res.send(bingoUser);
-    } else if (data.game) {
-        res.send(bingoSessions[data.game]);
-    } else if (data.bingoWord) {
-        console.log(typeof bingoUser.grids[gameId]);
-        if (bingoUser.grids[gameId])
-            toggleHeared(data.bingoWord, bingoUser.grids[gameId]);
-        res.send(bingoUser.grids[gameId]);
-    } else if (data.bingo) {
-        if (checkBingo(bingoUser.grids[gameId])) {
-            if (!bingoSession.bingos.includes(bingoUser.id))
-                bingoSession.bingos.push(bingoUser.id);
-            bingoSession.finished = true;
-            setTimeout(() => { // delete the finished game after five minutes
-                delete bingoSessions[gameId];
-            }, 360000);
-            res.send(bingoSession);
-        } else {
-            res.status(400);
-            res.send({'error': "this is not a bingo!"})
-        }
-    } else if (bingoSession) {
-        res.send(bingoSession);
-    } else {
-        res.status(400);
-        res.send({
-            error: 'invalid request data'
-        })
     }
 });
 
@@ -302,22 +254,22 @@ router.graphqlResolver = (req) => {
     let bingoSession = bingoSessions[gameId];
     return {
         // queries
-        gameInfo: (args) => {
-            if (args.id)
-                return bingoSessions[args.id];
+        gameInfo: ({input}) => {
+            if (input && input.id)
+                return bingoSessions[input.id];
             else
                 return bingoSession;
         },
-        checkBingo: (args) => {
+        checkBingo: () => {
             return checkBingo(bingoUser.grids[gameId])
         },
-        activeGrid: (args) => {
+        activeGrid: () => {
             return bingoUser.grids[gameId];
         },
         // mutation
-        createGame: (args) => {
-            let words = args.words;
-            let size = args.size;
+        createGame: ({input}) => {
+            let words = input.words;
+            let size = input.size;
             let game = new BingoSession(words, size);
 
             bingoSessions[game.id] = game;
@@ -328,31 +280,33 @@ router.graphqlResolver = (req) => {
 
             return game;
         },
-        submitBingo: (args) => {
+        submitBingo: () => {
             if (checkBingo(bingoUser.grids[gameId])) {
                 if (!bingoSession.bingos.includes(bingoUser.id))
                     bingoSession.bingos.push(bingoUser.id);
                 bingoSession.finished = true;
                 setTimeout(() => { // delete the finished game after five minutes
                     delete bingoSessions[gameId];
-                }, 360000);
-                return true;
+                }, 300000);
+                return bingoSession;
             } else {
-                return false;
+                return bingoSession;
             }
         },
-        toggleWord: (args) => {
-            if (args.word || args.base64Word) {
-                args.base64Word = args.base64Word || Buffer.from(args.word).toString('base-64');
+        toggleWord: ({input}) => {
+            if (input.word || input.base64Word) {
+                input.base64Word = input.base64Word || Buffer.from(input.word).toString('base-64');
                 if (bingoUser.grids[gameId])
-                    toggleHeared(args.base64Word, bingoUser.grids[gameId]);
+                    toggleHeared(input.base64Word, bingoUser.grids[gameId]);
                 return bingoUser.grids[gameId];
             }
         },
-        setUsername: (args) => {
-            if (args.username) {
-                bingoUser.username = args.username;
-                bingoSession.addUser(bingoUser);
+        setUsername: ({input}) => {
+            if (input.username) {
+                bingoUser.username = input.username;
+
+                if (bingoSession)
+                    bingoSession.addUser(bingoUser);
 
                 return bingoUser;
             }
