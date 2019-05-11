@@ -1,7 +1,9 @@
 const express = require('express'),
     router = express.Router(),
     cproc = require('child_process'),
-    fsx = require('fs-extra');
+    fsx = require('fs-extra'),
+    mdEmoji = require('markdown-it-emoji'),
+    md = require('markdown-it')().use(mdEmoji);
 
 const rWordOnly = /^\w+$/;
 
@@ -21,6 +23,7 @@ class BingoSession {
         this.bingos = [];   // array with the users that already had bingo
         this.finished = false;
         this.followup = null;
+        this.chatMessages = [];
     }
 
     /**
@@ -53,7 +56,53 @@ class BingoSession {
         let followup = new BingoSession(this.words, this.gridSize);
         this.followup = followup.id;
         bingoSessions[followup.id] = followup;
+        followup.chatMessages = this.chatMessages;
+        followup.chatMessages.push(new BingoChatMessage('--- Rematch ---', "INFO"));
         return followup;
+    }
+
+    /**
+     * Graphql endpoint to get the last n messages or messages by id
+     * @param args {Object} - arguments passed by graphql
+     * @returns {[]}
+     */
+    getMessages(args) {
+        let input = args.input || null;
+        if (input && input.id) {
+            return this.chatMessages.find(x => (x && x.id === input.id));
+        } else if (input && input.last) {
+            return this.chatMessages.slice(-input.last);
+        } else {
+            return this.chatMessages.slice(-10);
+        }
+    }
+
+    /**
+     * Sends the message that a user toggled a word.
+     * @param base64Word
+     * @param bingoUser
+     */
+    sendToggleInfo(base64Word, bingoUser) {
+        let word = Buffer.from(base64Word, 'base64').toString();
+        let toggleMessage = new BingoChatMessage(`${bingoUser.username} toggled phrase "${word}"`, "INFO");
+        this.chatMessages.push(toggleMessage);
+    }
+}
+
+class BingoChatMessage {
+    /**
+     * Chat Message class constructor
+     * @param messageContent {String} - the messages contents
+     * @param type {String} - the type constant of the message (USER, ERROR, INFO)
+     * @param [username] {String} -  the username of the user who send this message
+     */
+    constructor(messageContent, type="USER", username) {
+        this.id = generateBingoId();
+        this.content = messageContent;
+        this.htmlContent = md.renderInline(messageContent);
+        this.datetime = Date.now();
+        this.username = username;
+        this.type = type;
     }
 }
 
@@ -94,6 +143,15 @@ class BingoGrid {
         this.bingo = false;
         return this;
     }
+}
+
+/**
+ * Replaces tag signs with html-escaped signs.
+ * @param htmlString
+ * @returns {string}
+ */
+function replaceTagSigns(htmlString) {
+    return htmlString.replace(/</g, '&#60;').replace(/>/g, '&#62;');
 }
 
 /**
@@ -316,6 +374,7 @@ router.graphqlResolver = (req, res) => {
                 input.base64Word = input.base64Word || Buffer.from(input.word).toString('base-64');
                 if (bingoUser.grids[gameId]) {
                     toggleHeared(input.base64Word, bingoUser.grids[gameId]);
+                    bingoSession.sendToggleInfo(input.base64Word, bingoUser);
                     return bingoUser.grids[gameId];
                 } else {
                     res.status(400);
@@ -340,6 +399,16 @@ router.graphqlResolver = (req, res) => {
                     return bingoSession.createFollowup();
                 else
                     return bingoSessions[bingoSession.followup];
+            } else {
+                res.status(400);
+            }
+        },
+        sendChatMessage: ({input}) => {
+            input.message = replaceTagSigns(input.message);
+            if (bingoSession && input.message) {
+                let userMessage = new BingoChatMessage(input.message, 'USER', bingoUser.username);
+                bingoSession.chatMessages.push(userMessage);
+                return userMessage;
             } else {
                 res.status(400);
             }

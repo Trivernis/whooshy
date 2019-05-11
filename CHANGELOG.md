@@ -10,3 +10,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - CHANGELOG.md Changelog
 - content to the README.md
+- Chat to the bingo game (renderd with markdown-it)

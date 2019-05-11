@@ -187,6 +187,12 @@ async function refresh() {
             username
             id
           }
+          getMessages {
+            id
+            username
+            type
+            htmlContent
+          }
         }
       }
     }`, null, `/graphql?game=${getGameParam()}`);
@@ -212,6 +218,10 @@ async function refresh() {
                     }
                 }
             }
+        }
+        for (let chatMessage of bingoSession.getMessages) {
+            if (!document.querySelector(`.chatMessage[msg-id='${chatMessage.id}'`))
+                addChatMessage(chatMessage);
         }
     } else  {
         if (response.status === 400)
@@ -258,6 +268,54 @@ function showError(errorMessage) {
     setTimeout(() => {
         errorDiv.remove();
     }, 10000);
+}
+
+async function sendChatMessage() {
+    let messageInput = document.querySelector('#chat-input');
+    if (messageInput.value && messageInput.value.length > 0) {
+        let message = messageInput.value;
+        let response = await postGraphqlQuery(`
+        mutation($message: String!) {
+          bingo {
+            sendChatMessage(input: { message: $message }) {
+              id
+              htmlContent
+              username
+              type
+            }
+          }
+        }`,{message: message}, `/graphql?game=${getGameParam()}`);
+        if (response.status === 200) {
+            addChatMessage(response.data.bingo.sendChatMessage);
+            messageInput.value = '';
+        } else {
+            console.error(response);
+            showError('Error when sending message.');
+        }
+    }
+}
+
+/**
+ * Adds a message to the chat
+ * @param messageObject {Object} - the message object returned by graphql
+ */
+function addChatMessage(messageObject) {
+    let msgSpan = document.createElement('span');
+    msgSpan.setAttribute('class', 'chatMessage');
+    msgSpan.setAttribute('msg-id', messageObject.id);
+    if (messageObject.type === "USER") {
+        msgSpan.innerHTML = `
+        <span class="chatUsername">${messageObject.username}:</span>
+        <span class="chatMessageContent">${messageObject.htmlContent}</span>
+        `;
+    } else {
+        msgSpan.innerHTML = `
+        <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>
+        `;
+    }
+    let chatContent = document.querySelector('#chat-content');
+    chatContent.appendChild(msgSpan);
+    chatContent.scrollTop = chatContent.scrollHeight;       // auto-scroll to bottom
 }
 
 /**
