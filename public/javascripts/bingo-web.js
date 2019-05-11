@@ -3,7 +3,11 @@
  * @returns {string}
  */
 function getGameParam() {
-    return window.location.href.match(/\?game=(\w+)/)[1];
+    let matches = window.location.href.match(/\?game=(\w+)/);
+    if (matches)
+        return matches[1];
+    else
+        return '';
 }
 
 /**
