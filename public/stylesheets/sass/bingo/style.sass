@@ -215,6 +215,7 @@ textarea
       height: calc(100% - 2.5rem)
       background-color: $primary
       overflow: auto
+      font-size: 0.8em
 
       .chatMessage
         display: list-item
@@ -229,6 +230,15 @@ textarea
         .INFO
           color: $inactive
           font-style: italic
+
+        .chatMessageContent
+          img
+            width: 100%
+            height: auto
+            transition-duration: 0.5s
+            border-radius: 0.5em
+          img:hover
+            border-radius: 0
 
     #chat-input
       width: 100%

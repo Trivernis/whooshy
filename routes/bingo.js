@@ -3,7 +3,14 @@ const express = require('express'),
     cproc = require('child_process'),
     fsx = require('fs-extra'),
     mdEmoji = require('markdown-it-emoji'),
-    md = require('markdown-it')().use(mdEmoji);
+    mdMark = require('markdown-it-mark'),
+    mdSmartarrows = require('markdown-it-smartarrows'),
+    mdMath = require('markdown-it-math'),
+    md = require('markdown-it')()
+        .use(mdEmoji)
+        .use(mdMark)
+        .use(mdSmartarrows)
+        .use(mdMath);
 
 const rWordOnly = /^\w+$/;
 
@@ -303,7 +310,8 @@ router.get('/', (req, res) => {
         if (bingoSessions[gameId] && !bingoSessions[gameId].finished) {
             bingoUser.game = gameId;
             let bingoSession = bingoSessions[gameId];
-            bingoSession.addUser(bingoUser);
+            if (!bingoSession.users[bingoUser.id])
+                bingoSession.addUser(bingoUser);
 
             if (!bingoUser.grids[gameId]) {
                 bingoUser.grids[gameId] = generateWordGrid([bingoSession.gridSize, bingoSession.gridSize], bingoSession.words);
