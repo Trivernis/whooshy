@@ -19,6 +19,6 @@
     "js-yaml": "latest",
     "morgan": "1.9.1",
     "node-sass": "4.12.0",
-    "pug": "2.0.0-beta11"
+    "pug": "2.0.3"
   }
 }
