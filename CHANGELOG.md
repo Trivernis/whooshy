@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Chat to the bingo game (renderd with markdown-it)
 - Postgres session storage
 - sql-file directory `sql`
-
+- LICENSE.md (GPL v3)
+- eslint to dev dependencys
 
 ## Changed
 
@@ -28,3 +29,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - mobile layout
+- code style issues
+- Bingo button not shown on refresh

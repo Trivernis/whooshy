@@ -1,7 +1,5 @@
 const express = require('express'),
     router = express.Router(),
-    cproc = require('child_process'),
-    fsx = require('fs-extra'),
     mdEmoji = require('markdown-it-emoji'),
     mdMark = require('markdown-it-mark'),
     mdSmartarrows = require('markdown-it-smartarrows'),
@@ -9,8 +7,6 @@ const express = require('express'),
         .use(mdEmoji)
         .use(mdMark)
         .use(mdSmartarrows);
-
-const rWordOnly = /^\w+$/;
 
 let bingoSessions = {};
 
@@ -38,9 +34,9 @@ class BingoSession {
     addUser(user) {
         let id = user.id;
         this.users[id] = user;
-        if (user.username !== 'anonymous') {
+        if (user.username !== 'anonymous')
             this.chatMessages.push(new BingoChatMessage(`**${user.username}** joined.`, "INFO"));
-        }
+
     }
 
     /**
@@ -76,13 +72,13 @@ class BingoSession {
      */
     getMessages(args) {
         let input = args.input || null;
-        if (input && input.id) {
+        if (input && input.id)
             return this.chatMessages.find(x => (x && x.id === input.id));
-        } else if (input && input.last) {
+         else if (input && input.last)
             return this.chatMessages.slice(-input.last);
-        } else {
+         else
             return this.chatMessages.slice(-10);
-        }
+
     }
 
     /**
@@ -190,7 +186,7 @@ function inflateArray(array, minSize) {
     let iterations = Math.ceil(minSize/array.length)-1;
     for (let i = 0; i < iterations; i++)
         resultArray = [...resultArray, ...resultArray];
-    return resultArray
+    return resultArray;
 }
 
 /**
@@ -212,9 +208,9 @@ function generateWordGrid(dimensions, words) {
     let grid = [];
     for (let x = 0; x < dimensions[1]; x++) {
         grid[x] = [];
-        for (let y = 0; y < dimensions[0]; y++) {
+        for (let y = 0; y < dimensions[0]; y++)
             grid[x][y] = shuffledWords[(x * dimensions[0]) + y];
-        }
+
     }
     return (new BingoGrid(grid));
 }
@@ -235,55 +231,79 @@ function toggleHeared(base64Word, bingoGrid) {
 }
 
 /**
+ * Checks if a diagonal bingo is possible
+ * @param fg {Array<Array<boolean>>} - the grid with the checked (submitted) values
+ * @returns {boolean|boolean|*}
+ */
+function checkBingoDiagnoal(fg) {
+    let bingoCheck = true;
+    // diagonal check
+    for (let i = 0; i < fg.length; i++)
+        bingoCheck = fg[i][i] && bingoCheck;
+    if (bingoCheck)
+        return true;
+    bingoCheck = true;
+    for (let i = 0; i < fg.length; i++)
+        bingoCheck = fg[i][fg.length - i - 1] && bingoCheck;
+    return bingoCheck;
+}
+
+/**
+ * Checks if a vertical bingo is possible
+ * @param fg {Array<Array<boolean>>} - the grid with the checked (submitted) values
+ * @returns {boolean|boolean|*}
+ */
+function checkBingoVertical(fg) {
+    let bingoCheck = true;
+    for (let row of fg) {
+        bingoCheck = true;
+        for (let field of row)
+            bingoCheck = field && bingoCheck;
+        if (bingoCheck)
+            return true;
+    }
+    return bingoCheck;
+}
+
+/**
+ * Checks if a horizontal bingo is possible
+ * @param fg {Array<Array<boolean>>} - the grid with the checked (submitted) values
+ * @returns {boolean|boolean|*}
+ */
+function checkBingoHorizontal(fg) {
+    let bingoCheck = true;
+    // vertical check
+    for (let i = 0; i < fg.length; i++) {
+        bingoCheck = true;
+        for (let j = 0; j < fg.length; j++)
+            bingoCheck = fg[j][i] && bingoCheck;
+        if (bingoCheck)
+            return true;
+    }
+    return bingoCheck;
+}
+
+/**
  * Checks if a bingo exists in the bingo grid.
  * @param bingoGrid {BingoGrid}
  * @returns {boolean}
  */
 function checkBingo(bingoGrid) {
     let fg = bingoGrid.fieldGrid.map(x => x.map(y => y.submitted));
+    let diagonalBingo = checkBingoDiagnoal(fg);
+    if (diagonalBingo) {
+        bingoGrid.bingo = true;
+        return true;
+    }
+    let verticalCheck = checkBingoVertical(fg);
 
-    let diagonalBingo = true;
-    // diagonal check
-    for (let i = 0; i < fg.length; i++)
-        diagonalBingo = fg[i][i] && diagonalBingo;
-    if (diagonalBingo) {
+    if (verticalCheck) {
         bingoGrid.bingo = true;
         return true;
     }
-    diagonalBingo = true;
-    for (let i = 0; i < fg.length; i++)
-        diagonalBingo = fg[i][fg.length - i - 1] && diagonalBingo;
-    if (diagonalBingo) {
-        bingoGrid.bingo = true;
-        return true;
-    }
-    let bingoCheck = true;
-    // horizontal check
-    for (let row of fg) {
-        bingoCheck = true;
-        for (let field of row)
-            bingoCheck = field && bingoCheck;
-        if (bingoCheck) {
-            bingoGrid.bingo = true;
-            return true;
-        }
-    }
-    if (bingoCheck) {
-        bingoGrid.bingo = true;
-        return true;
-    }
-    bingoCheck = true;
-    // vertical check
-    for (let i = 0; i < fg.length; i++) {
-        bingoCheck = true;
-        for (let j = 0; j < fg.length; j++)
-            bingoCheck = fg[j][i] && bingoCheck;
-        if (bingoCheck) {
-            bingoGrid.bingo = true;
-            return true;
-        }
-    }
-    if (bingoCheck) {
+    let horizontalCheck = checkBingoHorizontal(fg);
+
+    if (horizontalCheck) {
         bingoGrid.bingo = true;
         return true;
     }
@@ -294,9 +314,9 @@ function checkBingo(bingoGrid) {
 // -- Router stuff
 
 router.use((req, res, next) => {
-    if (!req.session.bingoUser) {
+    if (!req.session.bingoUser)
         req.session.bingoUser = new BingoUser();
-    }
+
     next();
 });
 
@@ -311,9 +331,9 @@ router.get('/', (req, res) => {
             if (!bingoSession.users[bingoUser.id])
                 bingoSession.addUser(bingoUser);
 
-            if (!bingoUser.grids[gameId]) {
+            if (!bingoUser.grids[gameId])
                 bingoUser.grids[gameId] = generateWordGrid([bingoSession.gridSize, bingoSession.gridSize], bingoSession.words);
-            }
+
             res.render('bingo/bingo-game', {
                 grid: bingoUser.grids[gameId].fieldGrid,
                 username: bingoUser.username,
@@ -340,7 +360,7 @@ router.graphqlResolver = (req, res) => {
                 return bingoSession;
         },
         checkBingo: () => {
-            return checkBingo(bingoUser.grids[gameId])
+            return checkBingo(bingoUser.grids[gameId]);
         },
         activeGrid: () => {
             return bingoUser.grids[gameId];
@@ -348,7 +368,7 @@ router.graphqlResolver = (req, res) => {
         // mutation
         createGame: ({input}) => {
             let words = input.words.filter((el) => { // remove empty strings and non-types from word array
-                return (!!el && el.length > 0)
+                return (!!el && el.length > 0);
             });
             let size = input.size;
             if (words.length > 0 && size < 10 && size > 0) {
@@ -404,14 +424,14 @@ router.graphqlResolver = (req, res) => {
             }
         },
         createFollowupGame: () => {
-            if (bingoSession) {
+            if (bingoSession)
                 if (!bingoSession.followup)
                     return bingoSession.createFollowup();
                 else
                     return bingoSessions[bingoSession.followup];
-            } else {
+             else
                 res.status(400);
-            }
+
         },
         sendChatMessage: ({input}) => {
             input.message = replaceTagSigns(input.message).substring(0, 250);

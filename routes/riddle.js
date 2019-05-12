@@ -18,10 +18,9 @@ class RedditDownload {
 
 /**
  * Generates an id for a subreddit download.
- * @param subreddit
  * @returns {string}
  */
-function generateDownloadId(subreddit) {
+function generateDownloadId() {
     return Date.now().toString(16);
 }
 
@@ -32,7 +31,7 @@ function generateDownloadId(subreddit) {
  */
 function startDownload(subreddit) {
     if (rWordOnly.test(subreddit)) {
-        let downloadId = generateDownloadId(subreddit);
+        let downloadId = generateDownloadId();
         let dlFilePath = `./public/static/${downloadId}.zip`;
         let dlWebPath = `/static/${downloadId}.zip`;
         let dl = new RedditDownload(dlWebPath);
@@ -40,13 +39,11 @@ function startDownload(subreddit) {
         dl.process = cproc.exec(`python3 -u riddle.py -o ../../public/static/${downloadId} -z --lzma ${subreddit}`,
             {cwd: './scripts/reddit-riddle', env: {PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: true}},
             (err, stdout) => {
-                if (err) {
+                if (err)
                     console.error(err);
-                } else {
+                 else
                     console.log(`riddle.py: ${stdout}`);
-                }
             });
-
         dl.process.on('exit', (code) => {
             if (code === 0)
                 dl.status = 'finished';
@@ -57,20 +54,17 @@ function startDownload(subreddit) {
                 delete downloads[downloadId];
             }, 300000);     // delete the file after 5 minutes
         });
-
         dl.process.on('message', (msg) => {
-            console.log(msg)
+            console.log(msg);
         });
-
         downloads[downloadId] = dl;
-
         return downloadId;
     }
 }
 
 router.use('/files', express.static('./tmp'));
 
-router.get('/', (req, res, next) => {
+router.get('/', (req, res) => {
     res.render('riddle');
 });
 
@@ -84,15 +78,14 @@ router.post('/', (req, res) => {
         let id = req.body.id;
         let download = downloads[id];
 
-        if (download) {
+        if (download)
             res.send({
                 id: id,
                 status: download.status,
                 file: download.file
             });
-        } else {
+         else
             res.send({error: 'Unknown download ID', id: id});
-        }
     }
 });
 

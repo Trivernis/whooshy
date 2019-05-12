@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, no-undef */
 /**
  * Returns the value of the url-param 'game'
  * @returns {string}
@@ -17,7 +18,7 @@ function getGameParam() {
 async function submitBingoWords() {
     let textContent = document.querySelector('#bingo-textarea').value;
     let words = textContent.replace(/[<>]/g, '').split('\n').filter((el) => {
-        return (!!el && el.length > 0) // remove empty strings and non-types from word array
+        return (!!el && el.length > 0);     // remove empty strings and non-types from word array
     });
     if (words.length === 0) {
         showError('You need to provide at least one word!');
@@ -43,7 +44,7 @@ async function submitBingoWords() {
             insertParam('game', gameid);
         } else {
             showError(`Failed to create game. HTTP Error: ${response.status}`);
-            console.error(response)
+            console.error(response);
         }
     }
 }
@@ -60,7 +61,7 @@ async function createFollowup() {
           id
         }
       }
-    }`,null,`/graphql?game=${getGameParam()}`);
+    }`, null, `/graphql?game=${getGameParam()}`);
     if (response.status === 200 && response.data.bingo.createFollowupGame) {
         let gameid = response.data.bingo.createFollowupGame.id;
         insertParam('game', gameid);
@@ -88,7 +89,7 @@ async function submitUsername() {
       }
     }`, {
             username: username
-        },`/graphql?game=${getGameParam()}`);
+        }, `/graphql?game=${getGameParam()}`);
         if (response.status === 200) {
             unameInput.value = '';
             unameInput.placeholder = response.data.username;
@@ -122,22 +123,59 @@ async function submitWord(word) {
       }
     }`, {
         word: word
-    },`/graphql?game=${getGameParam()}`);
+    }, `/graphql?game=${getGameParam()}`);
 
     if (response.status === 200 && response.data.bingo.toggleWord) {
         let fieldGrid = response.data.bingo.toggleWord.fieldGrid;
-        for (let row of fieldGrid) {
-            for (let field of row) {
+        for (let row of fieldGrid)
+            for (let field of row)
                 document.querySelectorAll(`.bingo-word-panel[b-word="${field.base64Word}"]`).forEach(x => {
                     x.setAttribute('b-sub', field.submitted);
                 });
-            }
-        }
-        if (response.data.bingo.toggleWord.bingo) {
+
+        if (response.data.bingo.toggleWord.bingo)
             document.querySelector('#bingo-button').setAttribute('class', '');
-        } else {
+         else
             document.querySelector('#bingo-button').setAttribute('class', 'hidden');
+
+    } else {
+        showError(`Failed to submit word. HTTP Error: ${response.status}`);
+        console.error(response);
+    }
+}
+
+/**
+ * Refreshes the bingo grid. Shows the bingo button if a bingo is possible
+ * @returns {Promise<void>}
+ */
+async function refreshBingoGrid() {
+    let response = await postGraphqlQuery(`
+    query {
+      bingo {
+        activeGrid {
+          bingo
+          fieldGrid {
+            word
+            base64Word
+            submitted
+          }
         }
+      }
+    }`, {}, `/graphql?game=${getGameParam()}`);
+
+    if (response.status === 200 && response.data.bingo.activeGrid) {
+        let fieldGrid = response.data.bingo.activeGrid.fieldGrid;
+        for (let row of fieldGrid)
+            for (let field of row)
+                document.querySelectorAll(`.bingo-word-panel[b-word="${field.base64Word}"]`).forEach(x => {
+                    x.setAttribute('b-sub', field.submitted);
+                });
+
+        if (response.data.bingo.activeGrid.bingo)
+            document.querySelector('#bingo-button').setAttribute('class', '');
+        else
+            document.querySelector('#bingo-button').setAttribute('class', 'hidden');
+
     } else {
         showError(`Failed to submit word. HTTP Error: ${response.status}`);
         console.error(response);
@@ -162,12 +200,12 @@ async function submitBingo() {
           }
         }
       }
-    }`,null,`/graphql?game=${getGameParam()}`);
+    }`, null, `/graphql?game=${getGameParam()}`);
     if (response.status === 200 && response.data.bingo.submitBingo) {
         let bingoSession = response.data.bingo.submitBingo;
         if (bingoSession.bingos.length > 0) {
             displayWinner(bingoSession.players.find(x => x.id === bingoSession.bingos[0]).username);
-            clearInterval(refrInterval)
+            clearInterval(refrInterval);
         }
     } else {
         showError(`Failed to submit Bingo. HTTP Error: ${response.status}`);
@@ -181,6 +219,7 @@ async function submitBingo() {
  * @returns {Promise<void>}
  */
 async function refresh() {
+    await refreshBingoGrid();
     let response = await postGraphqlQuery(`
     query {
       bingo {
@@ -205,7 +244,7 @@ async function refresh() {
 
         if (bingoSession.bingos.length > 0) {
             displayWinner(bingoSession.players.find(x => x.id === bingoSession.bingos[0]).username);
-            clearInterval(refrInterval)
+            clearInterval(refrInterval);
         } else {
             for (let player of bingoSession.players) {
                 let foundPlayerDiv = document.querySelector(`.player-container[b-pid='${player.id}'`);
@@ -217,16 +256,16 @@ async function refresh() {
                     document.querySelector('#players-container').appendChild(playerDiv);
                 } else {
                     let playerNameSpan = foundPlayerDiv.querySelector('.player-name-span');
-                    if (playerNameSpan.innerText !== player.username) {
+                    if (playerNameSpan.innerText !== player.username)
                         playerNameSpan.innerText = player.username;
-                    }
+
                 }
             }
         }
-        for (let chatMessage of bingoSession.getMessages) {
+        for (let chatMessage of bingoSession.getMessages)
             if (!document.querySelector(`.chatMessage[msg-id='${chatMessage.id}'`))
                 addChatMessage(chatMessage);
-        }
+
     } else  {
         if (response.status === 400)
             clearInterval(refrInterval);
@@ -288,7 +327,7 @@ async function sendChatMessage() {
               type
             }
           }
-        }`,{message: message}, `/graphql?game=${getGameParam()}`);
+        }`, {message: message}, `/graphql?game=${getGameParam()}`);
         if (response.status === 200) {
             addChatMessage(response.data.bingo.sendChatMessage);
             messageInput.value = '';
@@ -307,14 +346,14 @@ function addChatMessage(messageObject) {
     let msgSpan = document.createElement('span');
     msgSpan.setAttribute('class', 'chatMessage');
     msgSpan.setAttribute('msg-id', messageObject.id);
-    if (messageObject.type === "USER") {
+    if (messageObject.type === "USER")
         msgSpan.innerHTML = `
         <span class="chatUsername">${messageObject.username}:</span>
         <span class="chatMessageContent">${messageObject.htmlContent}</span>`;
-    } else {
+     else
         msgSpan.innerHTML = `
         <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
-    }
+
     let chatContent = document.querySelector('#chat-content');
     chatContent.appendChild(msgSpan);
     chatContent.scrollTop = chatContent.scrollHeight;       // auto-scroll to bottom
@@ -338,7 +377,7 @@ function toggleChatView() {
     if (contentContainer.getAttribute('class') === 'displayChat')
         contentContainer.setAttribute('class', '');
     else
-        contentContainer.setAttribute('class', 'displayChat')
+        contentContainer.setAttribute('class', 'displayChat');
 }
 
 window.addEventListener("unhandledrejection", function(promiseRejectionEvent) {
@@ -349,9 +388,9 @@ window.addEventListener("unhandledrejection", function(promiseRejectionEvent) {
 window.onload = () => {
     if (document.querySelector('#chat-container'))
         refresh();
-    if (window && !document.querySelector('#bingoform')) {
-        refrInterval = setInterval(refresh, 1000);      // global variable to clear
-    }
+    if (window && !document.querySelector('#bingoform'))
+        refrInterval = setInterval(refresh, 1000);      // eslint-disable-line no-undef
+
     let gridSizeElem = document.querySelector('#bingo-grid-size');
     document.querySelector('#bingo-grid-y').innerText = gridSizeElem.value;
     gridSizeElem.oninput = () => {

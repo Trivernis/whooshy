@@ -69,6 +69,9 @@ textarea
       width: 100%
       margin: 0.5rem 0
 
+  #chat-container .chatMessage
+    font-size: 1.2em
+
 @media(min-device-width: 641px)
   textarea
     height: 80%
@@ -177,7 +180,6 @@ textarea
     grid-row-start: 1
     grid-row-end: 1
     display: grid
-    margin: 1rem
     font-size: inherit
 
     button
@@ -206,7 +208,7 @@ textarea
     grid-column-end: 1
     grid-row-start: 3
     grid-row-end: 4
-    height: 100%
+    height: calc(100% - 3px)
     border: 1px solid $inactive
     margin: 0 0.5rem
     word-break: break-word
