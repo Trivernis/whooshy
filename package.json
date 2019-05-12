@@ -15,7 +15,7 @@
     "fs-extra": "7.0.1",
     "graphql": "14.3.0",
     "graphql-import": "0.7.1",
-    "http-errors": "1.6.3",
+    "http-errors": "1.7.2",
     "js-yaml": "latest",
     "morgan": "1.9.1",
     "node-sass": "4.12.0",
