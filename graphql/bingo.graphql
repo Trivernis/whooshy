@@ -10,10 +10,13 @@ type BingoMutation {
     toggleWord(input: WordInput!): BingoGrid
 
     # set the username of the current session
-    setUsername(input: UsernameInput): BingoUser
+    setUsername(input: UsernameInput!): BingoUser
 
     # recreates the active game to a follow-up
     createFollowupGame: BingoGame
+
+    # sends a message to the current sessions chat
+    sendChatMessage(input: MessageInput!): ChatMessage
 }
 
 type BingoQuery {
@@ -26,36 +29,6 @@ type BingoQuery {
 
     # Returns the grid of the active bingo game
     activeGrid: BingoGrid
-}
-
-input CreateGameInput {
-
-    # the words used to fill the bingo grid
-    words: [String!]!
-
-    # the size of the bingo grid
-    size: Int! = 3
-}
-
-input WordInput {
-
-    # the normal word string
-    word: String
-
-    # the base64-encoded word
-    base64Word: String
-}
-
-input UsernameInput {
-
-    # the username string
-    username: String!
-}
-
-input IdInput {
-
-    # the id
-    id: ID!
 }
 
 type BingoGame {
@@ -80,6 +53,9 @@ type BingoGame {
 
     # the id of the followup game if it has been created
     followup: ID
+
+    # Returns the last n chat-messages
+    getMessages(input: MessageQueryInput): [ChatMessage!]
 }
 
 type BingoUser {
@@ -116,4 +92,84 @@ type BingoField {
 
     # the base64 encoded word
     base64Word: String
+}
+
+type ChatMessage {
+
+    # the id of the message
+    id: ID!
+
+    # the content of the message
+    content: String!
+
+    # the content of the message rendered by markdown-it
+    htmlContent: String
+
+    # the type of the message
+    type: MessageType!
+
+    # the username of the sender
+    username: String
+
+    # the time the message was send (in milliseconds)
+    datetime: String!
+}
+
+#             #
+# input Types #
+#             #
+
+input CreateGameInput {
+
+    # the words used to fill the bingo grid
+    words: [String!]!
+
+    # the size of the bingo grid
+    size: Int! = 3
+}
+
+input WordInput {
+
+    # the normal word string
+    word: String
+
+    # the base64-encoded word
+    base64Word: String
+}
+
+input UsernameInput {
+
+    # the username string
+    username: String!
+}
+
+input IdInput {
+
+    # the id
+    id: ID!
+}
+
+input MessageInput {
+
+    # the message
+    message: String!
+}
+
+input MessageQueryInput {
+
+    # search for a specific id
+    id: ID
+
+    # get the last n messages
+    last: Int = 10
+}
+
+#            #
+# enum Types #
+#            #
+
+enum MessageType {
+    USER
+    ERROR
+    INFO
 }

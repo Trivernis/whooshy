@@ -76,8 +76,9 @@ async function createFollowup() {
  */
 async function submitUsername() {
     let unameInput = document.querySelector('#username-input');
-    let username = unameInput.value;
-    let response = await postGraphqlQuery(`
+    let username = unameInput.value.replace(/^\s+|\s+$/g, '');
+    if (username.length > 1 && username !== 'anonymous') {
+        let response = await postGraphqlQuery(`
     mutation($username:String!) {
       bingo {
         setUsername(input: {username: $username}) {
@@ -86,16 +87,19 @@ async function submitUsername() {
         }
       }
     }`, {
-        username: username
-    },`/graphql?game=${getGameParam()}`);
-    if (response.status === 200) {
-        unameInput.value = '';
-        unameInput.placeholder = response.data.username;
-        document.querySelector('#username-form').remove();
-        document.querySelector('.greyover').remove();
+            username: username
+        },`/graphql?game=${getGameParam()}`);
+        if (response.status === 200) {
+            unameInput.value = '';
+            unameInput.placeholder = response.data.username;
+            document.querySelector('#username-form').remove();
+            document.querySelector('.greyover').remove();
+        } else {
+            showError(`Failed to submit username. HTTP Error: ${response.status}`);
+            console.error(response);
+        }
     } else {
-        showError(`Failed to submit username. HTTP Error: ${response.status}`);
-        console.error(response);
+        showError('You need to provide a username (minimum 2 characters)!');
     }
 }
 
@@ -187,6 +191,12 @@ async function refresh() {
             username
             id
           }
+          getMessages {
+            id
+            username
+            type
+            htmlContent
+          }
         }
       }
     }`, null, `/graphql?game=${getGameParam()}`);
@@ -212,6 +222,10 @@ async function refresh() {
                     }
                 }
             }
+        }
+        for (let chatMessage of bingoSession.getMessages) {
+            if (!document.querySelector(`.chatMessage[msg-id='${chatMessage.id}'`))
+                addChatMessage(chatMessage);
         }
     } else  {
         if (response.status === 400)
@@ -260,6 +274,52 @@ function showError(errorMessage) {
     }, 10000);
 }
 
+async function sendChatMessage() {
+    let messageInput = document.querySelector('#chat-input');
+    if (messageInput.value && messageInput.value.length > 0) {
+        let message = messageInput.value;
+        let response = await postGraphqlQuery(`
+        mutation($message: String!) {
+          bingo {
+            sendChatMessage(input: { message: $message }) {
+              id
+              htmlContent
+              username
+              type
+            }
+          }
+        }`,{message: message}, `/graphql?game=${getGameParam()}`);
+        if (response.status === 200) {
+            addChatMessage(response.data.bingo.sendChatMessage);
+            messageInput.value = '';
+        } else {
+            console.error(response);
+            showError('Error when sending message.');
+        }
+    }
+}
+
+/**
+ * Adds a message to the chat
+ * @param messageObject {Object} - the message object returned by graphql
+ */
+function addChatMessage(messageObject) {
+    let msgSpan = document.createElement('span');
+    msgSpan.setAttribute('class', 'chatMessage');
+    msgSpan.setAttribute('msg-id', messageObject.id);
+    if (messageObject.type === "USER") {
+        msgSpan.innerHTML = `
+        <span class="chatUsername">${messageObject.username}:</span>
+        <span class="chatMessageContent">${messageObject.htmlContent}</span>`;
+    } else {
+        msgSpan.innerHTML = `
+        <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
+    }
+    let chatContent = document.querySelector('#chat-content');
+    chatContent.appendChild(msgSpan);
+    chatContent.scrollTop = chatContent.scrollHeight;       // auto-scroll to bottom
+}
+
 /**
  * Executes the provided function if the key-event is an ENTER-key
  * @param event {Event} - the generated key event
@@ -270,12 +330,25 @@ function submitOnEnter(event, func) {
         func();
 }
 
+/**
+ * Toggles the displayChat class on the content container to switch between chat-view and grid view
+ */
+function toggleChatView() {
+    let contentContainer = document.querySelector('#content-container');
+    if (contentContainer.getAttribute('class') === 'displayChat')
+        contentContainer.setAttribute('class', '');
+    else
+        contentContainer.setAttribute('class', 'displayChat')
+}
+
 window.addEventListener("unhandledrejection", function(promiseRejectionEvent) {
     promiseRejectionEvent.promise.catch(err => console.log(err));
     showError('Connection problems... Is the server down?');
 });
 
 window.onload = () => {
+    if (document.querySelector('#chat-container'))
+        refresh();
     if (window && !document.querySelector('#bingoform')) {
         refrInterval = setInterval(refresh, 1000);      // global variable to clear
     }

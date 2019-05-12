@@ -21,18 +21,53 @@ textarea
     height: 80%
   #content-container
     grid-template-columns: 0 100% !important
-    grid-template-rows: 10% 80% 10% !important
-    #players-container div
-      display: none
+    grid-template-rows: 10% 40% 40% 10% !important
+
+    #players-container, #chat-container
+      display: none !important
       padding: 0
+
+    .errorDiv
+      grid-column-start: 1 !important
+      grid-column-end: 4 !important
+
+  #content-container.displayChat
+    grid-template-columns: 100% 0 !important
+    grid-template-rows: 0 25% 65% 10% !important
+
+    #players-container, #chat-container
+      display: block !important
+
+    #words-container
+      display: none !important
+
   #username-form
     width: calc(100% - 2rem) !important
     left: 0 !important
+
   #hide-player-container-button
     display: none
+
   .popup
     width: calc(100% - 2rem) !important
     left: 0 !important
+
+  #button-container
+    grid-column-start: 2 !important
+    grid-column-end: 3 !important
+
+  #chat-button-container
+    display: inline-block
+    grid-row-start: 4
+    grid-row-end: 4
+    grid-column-start: 1
+    grid-column-end: 4
+    overflow: hidden
+    margin: 0 0.5rem
+
+    button
+      width: 100%
+      margin: 0.5rem 0
 
 @media(min-device-width: 641px)
   textarea
@@ -41,6 +76,8 @@ textarea
   #words-container
     width: 100%
     height: 100%
+  #chat-button-container
+    display: none
 
 .number-input
   width: 4rem
@@ -126,10 +163,13 @@ textarea
 
 #content-container
   display: grid
-  grid-template-columns: 20% 80%
-  grid-template-rows: 10% 80% 10%
+  grid-template-columns: 25% 75%
+  grid-template-rows: 10% 40% 40% 10%
   height: 100%
   width: 100%
+
+  div
+    overflow: auto
 
   #button-container
     grid-column-start: 1
@@ -150,28 +190,74 @@ textarea
     grid-column-start: 1
     grid-column-end: 1
     grid-row-start: 2
-    grid-row-end: 2
+    grid-row-end: 3
 
     h1
       margin: 0 0 1rem 0
 
   #words-container
     grid-column-start: 2
-    grid-column-end: 2
+    grid-column-end: 3
     grid-row-start: 2
-    grid-row-end: 2
+    grid-row-end: 4
+
+  #chat-container
+    grid-column-start: 1
+    grid-column-end: 1
+    grid-row-start: 3
+    grid-row-end: 4
+    height: 100%
+    border: 1px solid $inactive
+    margin: 0 0.5rem
+    word-break: break-word
+
+    #chat-content
+      height: calc(100% - 2.5rem)
+      background-color: $primary
+      overflow: auto
+      font-size: 0.8em
+
+      .chatMessage
+        display: list-item
+        padding: 0.2rem
+
+        .chatUsername
+          color: $inactive
+
+        .ERROR
+          color: $error
+
+        .INFO
+          color: $inactive
+          font-style: italic
+
+        .chatMessageContent
+          img
+            width: 100%
+            height: auto
+            transition-duration: 0.5s
+            border-radius: 0.5em
+          img:hover
+            border-radius: 0
+
+    #chat-input
+      width: 100%
+      margin: 0 0 0 0
+      height: 2.5rem
+      border-radius: 0
 
   .errorDiv
     grid-column-start: 2
-    grid-column-end: 2
-    grid-row-start: 3
-    grid-row-end: 3
+    grid-column-end: 3
+    grid-row-start: 4
+    grid-row-end: 4
     background-color: $error
     text-align: center
     margin: 0.75rem 0
     border-radius: 1rem
     height: calc(100% - 1.5rem)
     display: table
+
     span
       display: table-cell
       font-size: 1.8rem
@@ -210,4 +296,4 @@ textarea
   z-index: 99
   top: 0
   left: 0
-  background-color: rgba(0,0,0,0.5)
+  background-color: rgba(0, 0, 0, 0.5)

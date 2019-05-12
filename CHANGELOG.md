@@ -6,7 +6,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
 ### Added
 
 - CHANGELOG.md Changelog
 - content to the README.md
+- Chat to the bingo game (renderd with markdown-it)
+- Postgres session storage
+- sql-file directory `sql`
+
+
+## Changed
+
+- changed export of `app.js` to the asynchronous init function that returns the app object
+- `bin/www` now calls the init function of `app.js`
+
+### Removed
+
+- sqlite3 sesssion storage
+
+### Fixed
+
+- mobile layout
