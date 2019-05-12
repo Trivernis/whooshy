@@ -330,6 +330,17 @@ function submitOnEnter(event, func) {
         func();
 }
 
+/**
+ * Toggles the displayChat class on the content container to switch between chat-view and grid view
+ */
+function toggleChatView() {
+    let contentContainer = document.querySelector('#content-container');
+    if (contentContainer.getAttribute('class') === 'displayChat')
+        contentContainer.setAttribute('class', '');
+    else
+        contentContainer.setAttribute('class', 'displayChat')
+}
+
 window.addEventListener("unhandledrejection", function(promiseRejectionEvent) {
     promiseRejectionEvent.promise.catch(err => console.log(err));
     showError('Connection problems... Is the server down?');

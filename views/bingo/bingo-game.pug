@@ -23,4 +23,6 @@ block content
                         div(class='bingo-word-panel', onclick=`submitWord('${field.base64Word}')`, b-word=field.base64Word, b-sub=`${field.submitted}`)
                             span= field.word
         div(id='button-container')
-            button(id='bingo-button' onclick='submitBingo()', class='hidden') Bingo!
+            button(id='bingo-button', onclick='submitBingo()', class='hidden') Bingo!
+        div(id='chat-button-container')
+            button(id='chat-toggle-button', onclick='toggleChatView()') toggle Chat

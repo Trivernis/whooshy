@@ -6,7 +6,7 @@
     "start": "node ./bin/www"
   },
   "dependencies": {
-    "connect-sqlite3": "^0.9.11",
+    "connect-pg-simple": "^5.0.0",
     "cookie-parser": "~1.4.4",
     "debug": "~2.6.9",
     "express": "~4.16.1",
@@ -22,6 +22,7 @@
     "markdown-it-emoji": "^1.4.0",
     "morgan": "~1.9.1",
     "node-sass": "^4.12.0",
+    "pg": "^7.11.0",
     "pug": "2.0.0-beta11"
   }
 }

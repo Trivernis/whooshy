@@ -12,11 +12,11 @@
 
 @media (min-device-width: 641px)
   html
-    font-size: 4vw
+    font-size: 2.5vw
 
 @media (min-device-width: 961px)
   html
-    font-size: 3vw
+    font-size: 2.2vw
 
 @media (min-device-width: 1025px)
   html
@@ -63,8 +63,10 @@ a
 
 ::-webkit-scrollbar-thumb
   background: darken($secondary, 5)
-  border-radius: 10px
+  transition-duration: 0.2s
+
+::-webkit-scrollbar-thumb:hover
+  background: $secondary
 
 ::-webkit-scrollbar-track
   background: lighten($primary, 5)
-  border-radius: 10px
