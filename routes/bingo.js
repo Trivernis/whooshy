@@ -5,12 +5,10 @@ const express = require('express'),
     mdEmoji = require('markdown-it-emoji'),
     mdMark = require('markdown-it-mark'),
     mdSmartarrows = require('markdown-it-smartarrows'),
-    mdMath = require('markdown-it-math'),
     md = require('markdown-it')()
         .use(mdEmoji)
         .use(mdMark)
-        .use(mdSmartarrows)
-        .use(mdMath);
+        .use(mdSmartarrows);
 
 const rWordOnly = /^\w+$/;
 
@@ -67,7 +65,7 @@ class BingoSession {
         this.followup = followup.id;
         bingoSessions[followup.id] = followup;
         followup.chatMessages = this.chatMessages;
-        followup.chatMessages.push(new BingoChatMessage('**Rematch**', "INFO"));
+        followup.chatMessages.push(new BingoChatMessage('==**Rematch**==', "INFO"));
         return followup;
     }
 
