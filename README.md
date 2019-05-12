@@ -1,4 +1,4 @@
-# whooshy [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg?style=flat-square)](https://www.gnu.org/licenses/gpl-3.0) 
+# whooshy [![CodeFactor](https://www.codefactor.io/repository/github/trivernis/whooshy/badge/develop)](https://www.codefactor.io/repository/github/trivernis/whooshy/overview/develop) [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg?style=flat-square)](https://www.gnu.org/licenses/gpl-3.0) 
 
 This repository is the node.js webserver running on `(beta.)trivernis.net`.
 
