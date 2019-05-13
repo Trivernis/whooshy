@@ -6,9 +6,226 @@ const express = require('express'),
     md = require('markdown-it')()
         .use(mdEmoji)
         .use(mdMark)
-        .use(mdSmartarrows);
+        .use(mdSmartarrows),
+    utils = require('../lib/utils'),
+    globals = require('../lib/globals');
 
+let pgPool = globals.pgPool;
 let bingoSessions = {};
+
+/**
+ * Class to manage the bingo data in the database.
+ */
+class BingoDataManager {
+    /**
+     * constructor functino
+     * @param postgresPool {pg.Pool} - the postgres pool
+     */
+    constructor(postgresPool) {
+        this.pgPool = postgresPool;
+        this.queries = utils.parseSqlYaml('./sql/bingo')
+    }
+
+    async init() {
+        await this.pgPool.query(this.queries.createTables.sql);
+        setInterval(async () => await this._databaseCleanup(), 5*60*1000);  // database cleanup every 5 minutes
+    }
+
+    /**
+     * Try-catch wrapper around the pgPool.query.
+     * @param query {String} - the sql query
+     * @param [values] {Array} - an array of values
+     * @returns {Promise<*>}
+     */
+    async _queryDatabase(query, values) {
+        try {
+            return await this.pgPool.query(query, values);
+        } catch (err) {
+            console.error(`Error on query "${query}" with values ${JSON.stringify(values)}.`);
+            console.error(err);
+            console.error(err.stack);
+            return {
+                rows: null
+            };
+        }
+    }
+
+    /**
+     * Queries the database and returns all resulting rows
+     * @param query {String} - the sql query
+     * @param values {Array} - an array of parameters needed in the query
+     * @returns {Promise<*>}
+     * @private
+     */
+    async _queryAllResults(query, values) {
+        let result = await this._queryDatabase(query, values);
+        return result.rows;
+    }
+
+    /**
+     * Query the database and return the first result or null
+     * @param query {String} - the sql query
+     * @param values {Array} - an array of parameters needed in the query
+     * @returns {Promise<*>}
+     */
+    async _queryFirstResult(query, values) {
+        let result = await this._queryDatabase(query, values);
+        if (result.rows.length > 0)
+            return result.rows[0];
+    }
+
+    /**
+     * Clears expired values from the database.
+     */
+    async _databaseCleanup() {
+        await this._queryDatabase(this.queries.cleanup.sql);
+    }
+
+    /**
+     * Add a player to the players table
+     * @param username {String} - the username of the player
+     * @returns {Promise<*>}
+     */
+    async addPlayer(username) {
+        let result = await this._queryFirstResult(this.queries.addPlayer.sql, [username]);
+        if (result)
+            return result;
+        else
+            return {};  // makes things easier
+    }
+
+    /**
+     * Updates the username of a player
+     * @param playerId {Number} - the id of the player
+     * @param username {String} - the new username
+     * @returns {Promise<void>}
+     */
+    async updatePlayerUsername(playerId, username) {
+        return await this._queryFirstResult(this.queries.updatePlayerUsername, [username, playerId]);
+    }
+
+    /**
+     * Returns the username for a player-id
+     * @param playerId {Number} - the id of the player
+     * @returns {Promise<*>}
+     */
+    async getPlayerUsername(playerId) {
+        let result = await this._queryFirstResult(this.queries.getPlayerUsername, [playerId]);
+        if (result)
+            return result.username;
+    }
+
+    /**
+     * Updates the expiration date of a player
+     * @param playerId {Request} - thie id of the player
+     * @returns {Promise<void>}
+     */
+    async updatePlayerExpiration(playerId) {
+        await this._queryDatabase(this.queries.updatePlayerExpire.sql, [playerId]);
+    }
+
+    /**
+     * Creates a bingo lobby.
+     * @param playerId
+     * @param gridSize
+     * @returns {Promise<*>}
+     */
+    async createLobby(playerId, gridSize) {
+        return await this._queryFirstResult(this.queries.addLobby.sql, [playerId, gridSize]);
+    }
+
+    /**
+     * Updates the expiration date of a lobby
+     * @param lobbyId {Number} - the id of the lobby
+     * @returns {Promise<*>}
+     */
+    async updateLobbyExpiration(lobbyId) {
+        return await this._queryDatabase(this.queries.updateLobbyExpire.sql, [lobbyId]);
+    }
+
+    /**
+     * Checks if a player is in a lobby.
+     * @param playerId {Number} - the id of the player
+     * @param lobbyId {Number} - the id of the lobby
+     * @returns {Promise<*>}
+     */
+    async getPlayerInLobby(playerId, lobbyId) {
+        return (await this._queryFirstResult(this.queries.getPlayerInLobby.sql, [playerId, lobbyId]));
+    }
+
+    /**
+     * Adds a player to a lobby.
+     * @param playerId {Number} - the id of the player
+     * @param lobbyId {Number} - the id of the lobby
+     * @returns {Promise<*>}
+     */
+    async addPlayerToLobby(playerId, lobbyId) {
+        let entry = await this.getPlayerInLobby(playerId, lobbyId);
+        if (entry)
+            return entry;
+        else
+            return await this._queryFirstResult(this.queries.addPlayerToLobby.sql, [playerId, lobbyId]);
+    }
+
+    /**
+     * Removes a player from a lobbby
+     * @param playerId {Number} - the id of the player
+     * @param lobbyId {Number} - the id of the lobby
+     * @returns {Promise<*>}
+     */
+    async removePlayerFromLobby(playerId, lobbyId) {
+        return await this._queryFirstResult(this.queries.removePlayerFromLobby.sql, [playerId, lobbyId]);
+    }
+
+    /**
+     * Adds a word to a lobby
+     * @param lobbyId {Number} - the id of the lobby
+     * @param word {Number} - the id of the word
+     * @returns {Promise<void>}
+     */
+    async addWordToLobby(lobbyId, word) {
+        return await this._queryFirstResult(this.queries.addWord.sql, [lobbyId, word]);
+    }
+
+    /**
+     * Returns all words used in a lobby
+     * @param lobbyId
+     * @returns {Promise<void>}
+     */
+    async getWordsForLobby(lobbyId) {
+        return await this._queryAllResults(this.queries.getWordsForLobby.sql, [lobbyId]);
+    }
+
+    /**
+     * Adds a grid for a user to a lobby
+     * @param lobbyId {Number} - the id of the lobby
+     * @param playerId {Number} - the id of the user
+     * @returns {Promise<void>}
+     */
+    async addGrid(lobbyId, playerId) {
+        return await this._queryFirstResult(this.queries.addGrid.sql, [playerId, lobbyId]);
+    }
+
+    /**
+     * Adds a word to a grid with specific location
+     * @param gridId {Number} - the id of the gird
+     * @param wordId {Number} - the id of the word
+     * @param row {Number} - the number of the row
+     * @param column {Number} - the number of the column
+     */
+    async addWordToGrid(gridId, wordId, row, column) {
+        return await this._queryFirstResult(this.queries.addWordToGrid.sql, [gridId, wordId, row, column]);
+    }
+
+    /**
+     * Returns all words in the grid with location
+     * @param gridId {Number} - the id of the grid
+     * @returns {Promise<*>}
+     */
+    async getWordsInGrid(gridId) {
+        return await this._queryAllResults(this.queries.getWordsInGrid.sql, [gridId]);
+    }
+}
 
 class BingoSession {
     /**
@@ -311,12 +528,21 @@ function checkBingo(bingoGrid) {
     return false;
 }
 
+
 // -- Router stuff
 
-router.use((req, res, next) => {
+
+let bdm = new BingoDataManager(pgPool);
+
+router.init = async () => {
+    await bdm.init();
+};
+
+router.use(async (req, res, next) => {
     if (!req.session.bingoUser)
         req.session.bingoUser = new BingoUser();
-
+    if (req.session.bingoPlayerId)
+        await bdm.updatePlayerExpiration(req.session.bingoPlayerId);
     next();
 });
 
@@ -347,10 +573,13 @@ router.get('/', (req, res) => {
     }
 });
 
-router.graphqlResolver = (req, res) => {
+router.graphqlResolver = async (req, res) => {
+    if (req.session.bingoPlayerId)
+        await bdm.updatePlayerExpiration(req.session.bingoPlayerId);
     let bingoUser = req.session.bingoUser || new BingoUser();
     let gameId = req.query.game || bingoUser.game || null;
     let bingoSession = bingoSessions[gameId];
+
     return {
         // queries
         gameInfo: ({input}) => {
@@ -366,6 +595,28 @@ router.graphqlResolver = (req, res) => {
             return bingoUser.grids[gameId];
         },
         // mutation
+        createLobby: async ({input}) => {
+            let gridSize = (input && input.gridSize)? input.gridSize : 3;
+            let lobby = await bdm.createLobby(req.session.bingoPlayerId, gridSize);
+            if (lobby && lobby.id)
+                return lobby.id;
+            else
+                res.status(500);
+        },
+        joinLobby: async ({input}) => {
+            if (input.lobbyId) {
+                let entry = await bdm.addPlayerToLobby(req.session.bingoPlayerId, input.lobbyId);
+                if (entry && entry.lobby_id && entry.player_id)
+                    return {
+                        lobbyId: entry.lobby_id,
+                        playerId: entry.player_id
+                    };
+                else
+                    res.status(500);
+            } else {
+                res.status(400);
+            }
+        },
         createGame: ({input}) => {
             let words = input.words.filter((el) => { // remove empty strings and non-types from word array
                 return (!!el && el.length > 0);
@@ -413,10 +664,14 @@ router.graphqlResolver = (req, res) => {
                 res.status(400);
             }
         },
-        setUsername: ({input}) => {
+        setUsername: async ({input}) => {
             if (input.username) {
                 bingoUser.username = input.username.substring(0, 30); // only allow 30 characters
 
+                if (!req.session.bingoPlayerId)
+                    req.session.bingoPlayerId = (await bdm.addPlayer(input.username)).id;
+                else
+                    await bdm.updatePlayerUsername(req.session.bingoPlayerId, input.username);
                 if (bingoSession)
                     bingoSession.addUser(bingoUser);
 

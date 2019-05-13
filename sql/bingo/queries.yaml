@@ -1,0 +1,107 @@
+# a file to list sql queries by names
+
+exports: # loaded from file
+  - createTables
+  - cleanup
+
+# create the needed bingo tables
+createTables:
+  file: createBingoTables.sql
+
+# clears expired values
+cleanup:
+  file: clearExpired.sql
+
+# Add a player to the database
+# params:
+# - {String} - the username of the player
+addPlayer:
+  sql: INSERT INTO bingo.players (username) VALUES ($1) RETURNING *;
+
+# Updates the username of a player
+# params:
+# - {String} - the new username of the player
+# - {Number} - the id of the player
+updatePlayerUsername:
+  sql: UPDATE bingo.players SET players.username = $1 WHERE players.id = $2 RETURNING *;
+
+# Selects the username for a player id
+# params:
+# - {Number} - the id of the player
+getPlayerUsername:
+  sql: SELECT players.username FROM bingo.players WHERE id = $1;
+
+# updates the expiration timestamp of the player
+# params:
+# - {Number} - the id of the player
+updatePlayerExpire:
+  sql: UPDATE bingo.players SET expire = (NOW() + interval '24 hours') WHERE id = $1;
+
+# adds a lobby to the database
+# params:
+# - {Number} - the id of the admin player
+# - {Number} - the size of the grid
+addLobby:
+  sql: INSERT INTO bingo.lobbys (admin_id, grid_size) VALUES ($1, $2) RETURNING *;
+
+# updates expiration timestamp of the lobby
+# params:
+# - {Number} - the id of the lobby
+updateLobbyExpire:
+  sql: UPDATE bingo.lobbys SET expire = (NOW() + interval '1 hours') WHERE id = $1;
+
+# inserts a player into a lobby
+# params:
+# - {Number} - the id of the player
+# - {Number} - the id of the lobby
+addPlayerToLobby:
+  sql: INSERT INTO bingo.lobby_players (player_id, lobby_id) VALUES ($1, $2);
+
+# removes a player from a lobby
+# params:
+# - {Number} - the id of the player
+# - {Number} - the id of the lobby
+removePlayerFromLobby:
+  sql: REMOVE FROM bingo.lobby_players WHERE player_id = $1 AND lobby_id = $2;
+
+# returns the entry of the player and lobby
+# params:
+# - {Number} - the id of the player
+# - {Number} - the id of the lobby
+getPlayerInLobby:
+  sql: SELECT * FROM bingo.lobby_players lp WHERE lp.player_id = $1 AND lp.lobby_id = $2;
+
+# adds a word to the database
+# params:
+# - {Number} - the id of the lobby where the word is used
+# - {String} - the word itself
+addWord:
+  sql: INSERT INTO bingo.words (lobby_id, content) VALUES ($1, $2) RETURNING *;
+
+# returns all words for a bingo game (lobby)
+# params:
+# - {Number} - the id of the bingo lobby
+getWordsForLobby:
+  sql: SELECT * FROM bingo.words WHERE words.lobby_id = $1;
+
+# adds a grid to the database
+# params:
+# - {Number} - the id of the player
+# - {Number} - the id of the lobby
+addGrid:
+  sql: INSERT INTO bingo.grids (player_id, lobby_id) VALUES ($1, $2) RETURNING *;
+
+# inserts grid-word connections into the database
+# params:
+# - {Number} - the id of the grid
+# - {Number} - the id of the word
+# - {Number} - the row of the word
+# - {Number} - the column of the word
+addWordToGrid:
+  sql: INSERT INTO bingo.grid_words (grid_id, word_id, grid_row, grid_column) VALUES ($1, $2, $3, $4) RETURNING *;
+
+# returns all words for a players grid
+# params:
+# - {Number} - the id of the grid
+getWordsForGridId:
+  sql: SELECT * FROM bingo.grid_words, bingo.words WHERE grid_words.grid_id = $1 AND words.id = grid_words.word_id;

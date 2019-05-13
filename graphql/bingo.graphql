@@ -1,114 +1,128 @@
 type BingoMutation {
+    "creates a lobby for a game and returns the lobby id"
+    createLobby: ID
 
-    # creates a game of bingo and returns the game id
+    "joins a lobby and returns the connection"
+    joinLobby(input: joinLobbyInput): PlayerLobbyConnection
+
+    "creates a game of bingo and returns the game"
     createGame(input: CreateGameInput!): BingoGame
 
-    # submit a bingo to the active game session
+    "submit a bingo to the active game session"
     submitBingo: BingoGame
 
-    # toggle a word (heared or not) on the sessions grid
+    "toggle a word (heared or not) on the sessions grid"
     toggleWord(input: WordInput!): BingoGrid
 
-    # set the username of the current session
+    "set the username of the current session"
     setUsername(input: UsernameInput!): BingoUser
 
-    # recreates the active game to a follow-up
+    "recreates the active game to a follow-up"
     createFollowupGame: BingoGame
 
-    # sends a message to the current sessions chat
+    "sends a message to the current sessions chat"
     sendChatMessage(input: MessageInput!): ChatMessage
 }
 
 type BingoQuery {
 
-    # Returns the currently active bingo game
+    "returns the currently active bingo game"
     gameInfo(input: IdInput): BingoGame
 
-    # If there is a bingo in the fields.
+    "if there is a bingo in the fields."
     checkBingo: Boolean
 
-    # Returns the grid of the active bingo game
+    "returns the grid of the active bingo game"
     activeGrid: BingoGrid
+}
+
+type PlayerLobbyConnection {
+
+    "the id of the player"
+    playerId: ID!
+
+    "the id of the lobby"
+    lobbyId: ID!
 }
 
 type BingoGame {
 
-    # the id of the bingo game
+    "the id of the bingo game"
     id: ID!
 
-    # the words used in the bingo game
+    "the words used in the bingo game"
     words: [String]!
 
-    # the size of the square-grid
+    "the size of the square-grid"
     gridSize: Int
 
-    # an array of players active in the bingo game
+    "an array of players active in the bingo game"
     players(input: IdInput): [BingoUser]
 
     # the player-ids that scored a bingo
     bingos: [String]!
 
-    # if the game has already finished
+    "if the game has already finished"
     finished: Boolean
 
-    # the id of the followup game if it has been created
+    "the id of the followup game if it has been created"
     followup: ID
 
-    # Returns the last n chat-messages
+    "returns the last n chat-messages"
     getMessages(input: MessageQueryInput): [ChatMessage!]
 }
 
 type BingoUser {
 
-    # the id of the bingo user
+    "the id of the bingo user"
     id: ID!
 
-    # the id of the currently active bingo game
+    "the id of the currently active bingo game"
     game: ID
 
-    # the name of the user
+    "the name of the user"
     username: String
 }
 
 type BingoGrid {
 
-    # the grid represented as string matrix
+    "the grid represented as string matrix"
     wordGrid: [[String]]!
 
-    # the grid represented as bingo field matrix
+    "the grid represented as bingo field matrix"
     fieldGrid: [[BingoField]]!
 
-    # if there is a bingo
+    "if there is a bingo"
     bingo: Boolean
 }
 
 type BingoField {
 
-    # the word contained in the bingo field
+    "the word contained in the bingo field"
     word: String
 
-    # if the word was already heared
+    "if the word was already heared"
     submitted: Boolean!
 
-    # the base64 encoded word
+    "the base64 encoded word"
     base64Word: String
 }
 
 type ChatMessage {
 
-    # the id of the message
+    "the id of the message"
     id: ID!
 
-    # the content of the message
+    "the content of the message"
     content: String!
 
     # the content of the message rendered by markdown-it
     htmlContent: String
 
-    # the type of the message
+    "the type of the message"
     type: MessageType!
 
-    # the username of the sender
+    "the username of the sender"
     username: String
 
     # the time the message was send (in milliseconds)
@@ -119,18 +133,24 @@ type ChatMessage {
 # input Types #
 #             #
 
+input joinLobbyInput {
+
+    "the id of the lobby to join"
+    lobbyId: ID!
+}
+
 input CreateGameInput {
 
-    # the words used to fill the bingo grid
+    "the words used to fill the bingo grid"
     words: [String!]!
 
-    # the size of the bingo grid
+    "the size of the bingo grid"
     size: Int! = 3
 }
 
 input WordInput {
 
-    # the normal word string
+    "the normal word string"
     word: String
 
     # the base64-encoded word
@@ -139,28 +159,28 @@ input WordInput {
 
 input UsernameInput {
 
-    # the username string
+    "the username string"
     username: String!
 }
 
 input IdInput {
 
-    # the id
+    "the id"
     id: ID!
 }
 
 input MessageInput {
 
-    # the message
+    "the message"
     message: String!
 }
 
 input MessageQueryInput {
 
-    # search for a specific id
+    "search for a specific id"
     id: ID
 
-    # get the last n messages
+    "get the last n messages"
     last: Int = 10
 }
 

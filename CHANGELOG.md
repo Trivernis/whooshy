@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - sql-file directory `sql`
 - LICENSE.md (GPL v3)
 - eslint to dev dependencys
+- table creation script for bingo
+- sql scripts for bingo
+- data management class for bingo
+- libs with utils and global variables
 
 ## Changed
 
