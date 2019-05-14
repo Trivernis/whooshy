@@ -1,0 +1,16 @@
+extends  bingo-layout
+
+block content
+    div(id='container-bingo-create')
+        div(id='username-form')
+            input(id='input-username'
+                type='text'
+                placeholder='Enter your name'
+                onkeydown='submitOnEnter(event, () => indicateStatus(submitUsername, "#username-status"))')
+            button(
+                id='submit-username'
+                onclick='indicateStatus(submitUsername, "#username-status")') Set Username
+            div(id='username-status' class='statusIndicator')
+        div(id='lobby-form')
+            button(id='join-lobby' onclick='joinLobby()') Join Lobby
+            button(id='create-lobby' onclick='createLobby()') Create Lobby

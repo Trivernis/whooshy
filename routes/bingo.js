@@ -1142,8 +1142,8 @@ router.use(async (req, res, next) => {
 
 router.get('/', (req, res) => {
     let bingoUser = req.session.bingoUser;
-    if (req.query.game) {
-        let gameId = req.query.game || bingoUser.game;
+    if (req.query.g) {
+        let lobbyId = req.query.g;
 
         if (bingoSessions[gameId] && !bingoSessions[gameId].finished) {
             bingoUser.game = gameId;
@@ -1163,7 +1163,7 @@ router.get('/', (req, res) => {
             res.render('bingo/bingo-submit');
         }
     } else {
-        res.render('bingo/bingo-submit');
+        res.render('bingo/bingo-create');
     }
 });
 
@@ -1188,7 +1188,7 @@ router.graphqlResolver = async (req, res) => {
         },
         // mutations
         setUsername: async ({username}) => {
-            username = username.substring(0, 30); // only allow 30 characters
+            username = replaceTagSigns(username.substring(0, 30)); // only allow 30 characters
 
             if (!playerId) {
                 req.session.bingoPlayerId = (await bdm.addPlayer(username)).id;
@@ -1228,16 +1228,25 @@ router.graphqlResolver = async (req, res) => {
                     }
                 },
                 kickPlayer: async ({pid}) => {
-                    let result = await bdm.removePlayerFromLobby(pid, lobbyId);
-                    return new LobbyWrapper(result.id, result);
+                    let admin = await lobbyWrapper.admin();
+                    if (admin.id === playerId) {
+                        let result = await bdm.removePlayerFromLobby(pid, lobbyId);
+                        return new LobbyWrapper(result.id, result);
+                    }
                 },
                 startRound: async () => {
-                    await lobbyWrapper.startNewRound();
-                    return lobbyWrapper.currentRound();
+                    let admin = await lobbyWrapper.admin();
+                    if (admin.id === playerId) {
+                        await lobbyWrapper.startNewRound();
+                        return lobbyWrapper.currentRound();
+                    }
                 },
                 setGridSize: async ({gridSize}) => {
-                    await lobbyWrapper.setGridSize(gridSize);
-                    return lobbyWrapper;
+                    let admin = await lobbyWrapper.admin();
+                    if (admin.id === playerId) {
+                        await lobbyWrapper.setGridSize(gridSize);
+                        return lobbyWrapper;
+                    }
                 },
                 setWords: async({words}) => {
                     let admin = await lobbyWrapper.admin();

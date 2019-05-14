@@ -20,15 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - sql scripts for bingo
 - data management class for bingo
 - libs with utils and global variables
+- css for startpage (wip)
+- file for css animations
+- pug file for startpage
 
 ## Changed
 
 - changed export of `app.js` to the asynchronous init function that returns the app object
 - `bin/www` now calls the init function of `app.js`
+- graphql api
 
 ### Removed
 
 - sqlite3 sesssion storage
+- old frontend
 
 ### Fixed
 

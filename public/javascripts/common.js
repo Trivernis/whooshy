@@ -91,3 +91,34 @@ function insertParam(key, value) {
         kvp[kvp.length] = [key, value].join('=');
     document.location.search = kvp.join('&');
 }
+
+/**
+ * Executes the provided function if the key-event is an ENTER-key
+ * @param event {Event} - the generated key event
+ * @param func {function} - the function to execute on enter
+ */
+function submitOnEnter(event, func) {
+    if (event.which === 13)
+        func();
+}
+
+/**
+ * Wrapper around a function to use the status indicator
+ * @param func {function} - the function to execute
+ * @param indicatorSelector {String} - a selector for the status indicator
+ * @returns {Promise<void>}
+ */
+async function indicateStatus(func, indicatorSelector) {
+    let statusIndicator = document.querySelector(indicatorSelector);
+    statusIndicator.setAttribute('status', 'pending');
+    try {
+        let result = await func();
+        if (result)
+            statusIndicator.setAttribute('status', 'success');
+        else
+            statusIndicator.setAttribute('status', 'error');
+    } catch (err) {
+        console.error(err);
+        statusIndicator.setAttribute('status', 'error');
+    }
+}

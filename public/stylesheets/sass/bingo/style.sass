@@ -41,10 +41,6 @@ textarea
     #words-container
       display: none !important
 
-  #username-form
-    width: calc(100% - 2rem) !important
-    left: 0 !important
-
   #hide-player-container-button
     display: none
 
@@ -137,32 +133,6 @@ textarea
 
 #bingo-button
   transition-duration: 0.8s
-
-#username-form
-  @include default-element
-  position: fixed
-  display: block
-  height: calc(50% - 1rem)
-  width: calc(40% - 1rem)
-  top: 25%
-  left: 30%
-  text-align: center
-  vertical-align: middle
-  padding: 1rem
-  z-index: 1000
-
-  button
-    cursor: pointer
-    width: 100%
-    margin: 1rem auto
-
-  input[type='text']
-    cursor: text
-    width: 100%
-
-#username-form *
-  display: inline-block
-  vertical-align: middle
 
 #content-container
   display: grid
@@ -299,3 +269,30 @@ textarea
   top: 0
   left: 0
   background-color: rgba(0, 0, 0, 0.5)
+
+#container-bingo-create
+  display: grid
+  grid-template-columns: 10% 80% 10%
+  grid-template-rows: 5% 10% 10% 70% 5%
+  height: 100%
+  width: 100%
+
+  #username-form
+    @include gridPosition(2, 3, 2, 3)
+    margin: auto
+
+    .statusIndicator
+      height: 1em
+      width: 1em
+      display: inline-block
+      margin: auto 1em
+
+    #input-username
+      margin: 0 0 0 3em
+
+  #lobby-form
+    @include gridPosition(3, 4, 2, 3)
+    margin: auto
+
+    button
+      width: 100%
