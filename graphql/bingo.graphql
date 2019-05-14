@@ -1,111 +1,162 @@
 type BingoMutation {
-    "creates a lobby for a game and returns the lobby id"
-    createLobby: ID
 
-    "joins a lobby and returns the connection"
-    joinLobby(input: joinLobbyInput): PlayerLobbyConnection
+    "creates a lobby for a game and returns the lobby"
+    createLobby(gridSize: Int = 3): BingoLobby
 
-    "creates a game of bingo and returns the game"
-    createGame(input: CreateGameInput!): BingoGame
+    "lobby mutations"
+    mutateLobby(id: ID!): LobbyMutation
 
-    "submit a bingo to the active game session"
-    submitBingo: BingoGame
+    "sets the username of a player"
+    setUsername(username: String): BingoPlayer
+}
 
-    "toggle a word (heared or not) on the sessions grid"
-    toggleWord(input: WordInput!): BingoGrid
+type LobbyMutation {
 
-    "set the username of the current session"
-    setUsername(input: UsernameInput!): BingoUser
+    "joins the lobby"
+    join: BingoLobby
 
-    "recreates the active game to a follow-up"
-    createFollowupGame: BingoGame
+    "leaves the lobby"
+    leave: Boolean
 
-    "sends a message to the current sessions chat"
-    sendChatMessage(input: MessageInput!): ChatMessage
+    "kicks a player from the lobby"
+    kickPlayer(playerId: ID!): BingoLobby
+
+    "starts a round in a lobby if the user is the admin"
+    startRound: BingoRound
+
+    "sets the new gridsize for the lobby"
+    setGridSize(gridSize: Int!): BingoLobby
+
+    "sets the words of a lobby"
+    setWords(words: [String]): BingoLobby
+
+    "sends a message to the lobby"
+    sendMessage(message: String): ChatMessage
+
+    "submits bingo"
+    submitBingo: BingoRound
+
+    "submits a click on a word and returns the field"
+    toggleGridField(location: GridCoordinates!): GridField
 }
 
 type BingoQuery {
 
-    "returns the currently active bingo game"
-    gameInfo(input: IdInput): BingoGame
+    "returns information about a lobby with a specific id"
+    lobby(id: ID!): BingoLobby
 
-    "if there is a bingo in the fields."
-    checkBingo: Boolean
-
-    "returns the grid of the active bingo game"
-    activeGrid: BingoGrid
+    "returns information about a player (if no id is set, its the sessions player)"
+    player(id: ID): BingoPlayer
 }
 
-type PlayerLobbyConnection {
-
-    "the id of the player"
-    playerId: ID!
+type BingoLobby {
 
     "the id of the lobby"
-    lobbyId: ID!
-}
-
-type BingoGame {
-
-    "the id of the bingo game"
     id: ID!
 
-    "the words used in the bingo game"
-    words: [String]!
+    "the grid size of the lobby"
+    gridSize: Int!
 
-    "the size of the square-grid"
-    gridSize: Int
+    "all players in the lobby"
+    players: [BingoPlayer]
 
-    "an array of players active in the bingo game"
-    players(input: IdInput): [BingoUser]
+    "the admin of the lobby"
+    admin: BingoPlayer
 
-    # the player-ids that scored a bingo
-    bingos: [String]!
+    "the active bingo round"
+    currentRound: BingoRound
 
-    "if the game has already finished"
-    finished: Boolean
+    "all rounds the game had"
+    rounds: [BingoRound]
 
-    "the id of the followup game if it has been created"
-    followup: ID
+    "the messages send in the lobby"
+    messages(limit: Int): [ChatMessage!]
 
-    "returns the last n chat-messages"
-    getMessages(input: MessageQueryInput): [ChatMessage!]
+    "the words used in the lobby"
+    words: [BingoWord]
 }
 
-type BingoUser {
+type BingoPlayer {
 
-    "the id of the bingo user"
+    "the id of the player"
     id: ID!
 
-    "the id of the currently active bingo game"
-    game: ID
-
-    "the name of the user"
+    "the username of the player"
     username: String
+
+    "the grid of the player with the given lobby-id"
+    grid(lobbyId: ID!): BingoGrid
+
+    "the number of wins the user had in the lobby"
+    wins(lobbyId: ID!): Int
+}
+
+type BingoRound {
+    "the id of the bingo round"
+    id: ID!
+
+    "the winner of the round (if exists)"
+    winner: BingoPlayer
+
+    "start time of the round"
+    start: String!
+
+    "finish time of the round"
+    finish: String
+
+    "the status of the bingo round"
+    status: RoundStatus
+
+    "the lobby of the bingo round"
+    lobby: BingoLobby
 }
 
 type BingoGrid {
 
-    "the grid represented as string matrix"
-    wordGrid: [[String]]!
+    "the id of the grid"
+    id: ID!
 
     "the grid represented as bingo field matrix"
-    fieldGrid: [[BingoField]]!
+    fields: [GridField]!
 
     "if there is a bingo"
     bingo: Boolean
+
+    "the size of the grid"
+    size: Int
 }
 
-type BingoField {
+type GridField {
 
     "the word contained in the bingo field"
-    word: String
+    word: BingoWord
 
     "if the word was already heared"
     submitted: Boolean!
 
-    "the base64 encoded word"
-    base64Word: String
+    "the row of the field"
+    row: Int!
+
+    "the column of the field"
+    column: Int!
+}
+
+type BingoWord {
+
+    "the id of the word"
+    id: ID!
+
+    "the word itself"
+    content: String!
+
+    "the number of players that heared this word"
+    heared: Int!
+
+    "the lobby where the word is used"
+    lobby: BingoLobby
+
+    "if the word was actually heared"
+    confirmed: Boolean
 }
 
 type ChatMessage {
@@ -116,72 +167,33 @@ type ChatMessage {
     "the content of the message"
     content: String!
 
-    # the content of the message rendered by markdown-it
+    "the content rendered by markdown-it"
     htmlContent: String
 
     "the type of the message"
     type: MessageType!
 
     "the username of the sender"
-    username: String
+    author: BingoPlayer
 
-    # the time the message was send (in milliseconds)
-    datetime: String!
+    "the lobby where the message was send in"
+    lobby: BingoLobby
+
+    "the time the message was created"
+    created: String!
 }
 
 #             #
 # input Types #
 #             #
 
-input joinLobbyInput {
+input GridCoordinates {
 
-    "the id of the lobby to join"
-    lobbyId: ID!
-}
+    "the grid row"
+    row: Int!
 
-input CreateGameInput {
-
-    "the words used to fill the bingo grid"
-    words: [String!]!
-
-    "the size of the bingo grid"
-    size: Int! = 3
-}
-
-input WordInput {
-
-    "the normal word string"
-    word: String
-
-    # the base64-encoded word
-    base64Word: String
-}
-
-input UsernameInput {
-
-    "the username string"
-    username: String!
-}
-
-input IdInput {
-
-    "the id"
-    id: ID!
-}
-
-input MessageInput {
-
-    "the message"
-    message: String!
-}
-
-input MessageQueryInput {
-
-    "search for a specific id"
-    id: ID
-
-    "get the last n messages"
-    last: Int = 10
+    "the grid column"
+    column: Int!
 }
 
 #            #
@@ -192,4 +204,10 @@ enum MessageType {
     USER
     ERROR
     INFO
+}
+
+enum RoundStatus {
+    ACTIVE
+    FINISHED
+    PAUSED
 }

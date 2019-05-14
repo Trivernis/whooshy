@@ -67,12 +67,7 @@
         "warn",
         "consistent"
       ],
-      "camelcase": [
-        "error",
-        {
-          "properties": "always"
-        }
-      ],
+      "camelcase": "off",
       "comma-spacing": [
         "error",
         {
