@@ -166,6 +166,7 @@ async function setLobbyWords(words) {
  * @returns {Promise<void>}
  */
 async function startRound() {
+    let textinput = document.querySelector('#input-bingo-words');
     let words = getLobbyWords();
     let resultWords = await setLobbyWords(words);
     textinput.value = resultWords.map(x => x.content).join('\n');
