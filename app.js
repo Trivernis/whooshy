@@ -59,7 +59,7 @@ async function init() {
     app.use('/sass', compileSass({
         root: './public/stylesheets/sass',
         sourceMap: true,
-        watchFiles: true,
+        watchFiles: false, // TODO: set true
         logToConsole: true
     }));
     app.use(express.static(path.join(__dirname, 'public')));

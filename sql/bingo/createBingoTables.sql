@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS bingo.words (
 CREATE TABLE IF NOT EXISTS bingo.messages (
     id serial UNIQUE PRIMARY KEY,
     content varchar(255) NOT NULL,
-    player_id serial references bingo.players(id) ON DELETE SET NULL,
+    player_id integer,
     lobby_id serial references bingo.lobbys(id) ON DELETE CASCADE,
     type varchar(8) DEFAULT 'USER' NOT NULL,
     created timestamp DEFAULT NOW()
@@ -68,3 +68,7 @@ CREATE TABLE IF NOT EXISTS bingo.grid_words (
     submitted boolean DEFAULT false,
     PRIMARY KEY (grid_id, grid_row, grid_column)
 );
+
+-- altering
+
+ALTER TABLE bingo.messages ALTER COLUMN player_id DROP NOT NULL;

@@ -239,3 +239,10 @@ getWordsForGridId:
 # - {String} - the content of the message
 addUserMessage:
   sql: INSERT INTO bingo.messages (player_id, lobby_id, content) VALUES ($1, $2, $3) RETURNING *;
+
+# inserts a info message
+# params:
+# - {Number} - the id of the lobby
+# - {String} - the content of the message
+addInfoMessage:
+  sql: INSERT INTO bingo.messages (type, lobby_id, content) VALUES ('INFO', $1, $2) RETURNING *;

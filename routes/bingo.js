@@ -11,7 +11,7 @@ const express = require('express'),
     globals = require('../lib/globals');
 
 let pgPool = globals.pgPool;
-let bingoSessions = {};
+let playerNames = utils.getFileLines('./misc/usernames.txt').filter(x => (x && x.length > 0));
 
 /**
  * Class to manage the bingo data in the database.
@@ -373,11 +373,12 @@ class BingoDataManager {
 
     /**
      * Updates the rounds winner
+     * @param roundId {Number} - the id of the round
      * @param winnerId {Number} - the id of the winner
      * @returns {Promise<*>}
      */
-    async setRoundWinner(winnerId) {
-        return await this._queryFirstResult(this.queries.setRoundWiner.sql, [winnerId]);
+    async setRoundWinner(roundId, winnerId) {
+        return await this._queryFirstResult(this.queries.setRoundWinner.sql, [roundId, winnerId]);
     }
 
     /**
@@ -389,6 +390,16 @@ class BingoDataManager {
      */
     async addUserMessage(lobbyId, playerId, messageContent) {
         return await this._queryFirstResult(this.queries.addUserMessage.sql, [playerId, lobbyId, messageContent]);
+    }
+
+    /**
+     * Adds a message of type "INFO" to the lobby
+     * @param lobbyId {Number} - the id of the lobby
+     * @param messageContent {String} - the content of the info message
+     * @returns {Promise<*>}
+     */
+    async addInfoMessage(lobbyId, messageContent) {
+        return await this._queryFirstResult(this.queries.addInfoMessage.sql, [lobbyId, messageContent]);
     }
 
     /**
@@ -793,7 +804,7 @@ class RoundWrapper {
     async setWinner(winnerId) {
         let status = await this.status();
         if (status !== "FINISHED") {
-            let updateResult = await bdm.setRoundWinner(winnerId);
+            let updateResult = await bdm.setRoundWinner(this.id, winnerId);
             if (updateResult)
                 await this.setFinished();
             return true;
@@ -816,11 +827,12 @@ class LobbyWrapper {
 
     /**
      * Loads information about the lobby if it hasn't been loaded yet
+     * @param [force] {Boolean} - forces a data reload
      * @returns {Promise<void>}
      * @private
      */
-    async _loadLobbyInfo() {
-        if (!this._infoLoaded) {
+    async _loadLobbyInfo(force) {
+        if (!this._infoLoaded && !force) {
             let row = await bdm.getLobbyInfo(this.id);
             this._assignProperties(row);
         }
@@ -837,6 +849,7 @@ class LobbyWrapper {
             this.grid_size = row.grid_size;
             this.expire = row.expire;
             this.current_round = row.current_round;
+            this.last_round = row.last_round;
             this._infoLoaded = true;
         }
     }
@@ -903,7 +916,7 @@ class LobbyWrapper {
         let messages = [];
         for (let row of rows)
             messages.push(new MessageWrapper(row));
-        return messages;
+        return messages.reverse();
     }
 
     /**
@@ -998,6 +1011,27 @@ class LobbyWrapper {
                 // eslint-disable-next-line no-await-in-loop
                 await bdm.addWordToLobby(this.id, word);
         }
+    }
+
+    /**
+     * Adds a player to the lobby.
+     * @param playerId
+     * @returns {Promise<void>}
+     */
+    async addPlayer(playerId) {
+        await bdm.addPlayerToLobby(playerId, this.id);
+        let username = await new PlayerWrapper(playerId).username();
+        await bdm.addInfoMessage(this.id, `${username} joined.`);
+        await this._loadLobbyInfo(true);
+    }
+
+    /**
+     * Returns if the lobby is in an active round
+     * @returns {Promise<boolean>}
+     */
+    async roundActive() {
+        let currentRound = await this.currentRound();
+        return currentRound && (await currentRound.status()) === 'ACTIVE';
     }
 }
 
@@ -1124,6 +1158,64 @@ function checkBingo(fg) {
     return diagonalBingo || verticalCheck || horizontalCheck;
 }
 
+/**
+ * Gets player data for a lobby
+ * @param lobbyWrapper
+ * @returns {Promise<Array>}
+ */
+async function getPlayerData(lobbyWrapper) {
+    let playerData = [];
+
+    for (let player of await lobbyWrapper.players())
+        playerData.push({
+            id: player.id,
+            wins: await player.wins({lobbyId: lobbyWrapper.id}),
+            username: await player.username()}
+        );
+    return playerData;
+}
+
+/**
+ * Gets data for all words of a lobby
+ * @param lobbyWrapper
+ * @returns {Promise<Array>}
+ */
+async function getWordsData(lobbyWrapper) {
+    let wordList = [];
+
+    for (let word of await lobbyWrapper.words())
+        wordList.push(await word.content());
+    return wordList;
+}
+
+/**
+ * Returns a completely resolved grid
+ * @param lobbyId
+ * @param playerId
+ * @returns {Promise<{bingo: boolean, fields: Array}>}
+ */
+async function getGridData(lobbyId, playerId) {
+    let playerWrapper = new PlayerWrapper(playerId);
+    let lobbyWrapper = new LobbyWrapper(lobbyId);
+    let grid = await playerWrapper.grid({lobbyId: lobbyId});
+    let fields = await grid.fields();
+    let fieldGrid = [];
+
+    for (let i = 0; i < await lobbyWrapper.gridSize(); i++) {
+        fieldGrid[i] = [];
+        for (let j = 0; j < await lobbyWrapper.gridSize(); j++) {
+            let field = fields.find(x => (x.row === i && x.column === j))
+            fieldGrid[i][j] = {
+                row: field.row,
+                column: field.column,
+                word: await field.word.content(),
+                submitted: field.submitted
+            };
+        }
+    }
+
+    return {fields: fieldGrid, bingo: await grid.bingo()};
+}
 
 // -- Router stuff
 
@@ -1140,27 +1232,35 @@ router.use(async (req, res, next) => {
     next();
 });
 
-router.get('/', (req, res) => {
-    let bingoUser = req.session.bingoUser;
+router.get('/', async (req, res) => {
+    let playerId = req.session.bingoPlayerId;
+    if (!playerId)
+        req.session.bingoPlayerId = playerId = (await bdm.addPlayer(shuffleArray(playerNames)[0])).id;
     if (req.query.g) {
         let lobbyId = req.query.g;
+        let lobbyWrapper = new LobbyWrapper(lobbyId);
 
-        if (bingoSessions[gameId] && !bingoSessions[gameId].finished) {
-            bingoUser.game = gameId;
-            let bingoSession = bingoSessions[gameId];
-            if (!bingoSession.users[bingoUser.id])
-                bingoSession.addUser(bingoUser);
-
-            if (!bingoUser.grids[gameId])
-                bingoUser.grids[gameId] = generateWordGrid(bingoSession.gridSize, bingoSession.words);
-
-            res.render('bingo/bingo-game', {
-                grid: bingoUser.grids[gameId].fieldGrid,
-                username: bingoUser.username,
-                players: bingoSession.players()
-            });
+        if (!(await lobbyWrapper.roundActive())) {
+            if (!await lobbyWrapper.hasPlayer(playerId))
+                await lobbyWrapper.addPlayer(playerId);
+            let playerData = await getPlayerData(lobbyWrapper);
+            let words = await getWordsData(lobbyWrapper);
+            let admin = await lobbyWrapper.admin();
+            res.render('bingo/bingo-lobby', {
+                players: playerData,
+                isAdmin: (playerId === admin.id),
+                words: words,
+                wordString: words.join('\n')});
         } else {
-            res.render('bingo/bingo-submit');
+            if (await lobbyWrapper.hasPlayer(playerId)) {
+                let playerData = await getPlayerData(lobbyWrapper);
+                let grid = await getGridData(lobbyId, playerId);
+                res.render('bingo/bingo-round', {players: playerData, grid: grid});
+            } else {
+                let playerData = await getPlayerData(lobbyWrapper);
+                let admin = await lobbyWrapper.admin();
+                res.render('bingo/bingo-lobby', {players: playerData, isAdmin: (playerId === admin.id)});
+            }
         }
     } else {
         res.render('bingo/bingo-create');
@@ -1174,7 +1274,8 @@ router.graphqlResolver = async (req, res) => {
 
     return {
         // queries
-        lobby: ({id}) => {
+        lobby: async ({id}) => {
+            await bdm.updateLobbyExpiration(id);
             return new LobbyWrapper(id);
         },
         player: ({id}) => {

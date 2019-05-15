@@ -1,0 +1,6 @@
+div(id='container-players')
+    h1 Players
+    div(id='player-list')
+        each player in players
+            div(class='playerEntryContainer', b-pid=`${player.id}`)
+                span(class='playerNameSpan')= player.username

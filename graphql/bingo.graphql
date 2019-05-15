@@ -139,6 +139,9 @@ type GridField {
 
     "the column of the field"
     column: Int!
+
+    "the grid the field belongs to"
+    grid: BingoGrid
 }
 
 type BingoWord {

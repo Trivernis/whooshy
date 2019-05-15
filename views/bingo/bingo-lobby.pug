@@ -1,0 +1,19 @@
+extends  bingo-layout
+
+block content
+    div(id='container-bingo-lobby')
+        h1(id='lobby-title') Bingo Lobby
+        include bingo-players
+        div(id='container-lobby-settings')
+            h1 Words
+            if isAdmin
+                textarea(id='input-bingo-words')= wordString
+                button(id='button-round-start' onclick='startRound()') Start Round
+            else
+                div(id='bingo-words')
+                    for word in words
+                        span(class='bingoWord')= word
+                button(id='button-leave' onclick='leaveLobby()') Leave
+        include bingo-chat
+
+        script(type='text/javascript') refreshLobby();

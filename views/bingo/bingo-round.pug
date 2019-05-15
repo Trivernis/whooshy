@@ -1,0 +1,24 @@
+include bingo-layout
+
+block content
+    div(id='container-bingo-round')
+        include bingo-players
+        include bingo-chat
+        if grid.bingo
+            div(id='container-bingo-button')
+                button(id='bingo-button' onclick='submitBingo()') Bingo!
+        else
+            div(id='container-bingo-button' class='hidden')
+                button(id='bingo-button' onclick='submitBingo()') Bingo!
+        div(id='container-grid')
+            each val in grid.fields
+                div(class='bingoWordRow')
+                    each field in val
+                        div(
+                            class='bingoWordPanel'
+                            onclick=`submitFieldToggle(this)`
+                            b-row=field.row
+                            b-column=field.column
+                            b-sub=`${field.submitted}`)
+                            span= field.word
+        script(type='text/javascript') refreshRound();
