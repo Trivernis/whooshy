@@ -855,6 +855,15 @@ class LobbyWrapper {
     }
 
     /**
+     * Returns if the lobby exists (based on one loaded attribute)
+     * @returns {Promise<boolean>}
+     */
+    async exists() {
+        await this._loadLobbyInfo();
+        return !!this.expire;
+    }
+
+    /**
      * returns the players in the lobby
      * @returns {Promise<Array>}
      */
@@ -1022,6 +1031,18 @@ class LobbyWrapper {
         await bdm.addPlayerToLobby(playerId, this.id);
         let username = await new PlayerWrapper(playerId).username();
         await bdm.addInfoMessage(this.id, `${username} joined.`);
+        await this._loadLobbyInfo(true);
+    }
+
+    /**
+     * Removes a player from the lobby
+     * @param playerId
+     * @returns {Promise<void>}
+     */
+    async removePlayer(playerId) {
+        await bdm.removePlayerFromLobby(playerId, this.id);
+        let username = await new PlayerWrapper(playerId).username();
+        await bdm.addInfoMessage(this.id, `${username} left.`);
         await this._loadLobbyInfo(true);
     }
 
@@ -1236,9 +1257,9 @@ router.get('/', async (req, res) => {
     let playerId = req.session.bingoPlayerId;
     if (!playerId)
         req.session.bingoPlayerId = playerId = (await bdm.addPlayer(shuffleArray(playerNames)[0])).id;
-    if (req.query.g) {
+    let lobbyWrapper = new LobbyWrapper(req.query.g);
+    if (req.query.g && await lobbyWrapper.exists()) {
         let lobbyId = req.query.g;
-        let lobbyWrapper = new LobbyWrapper(lobbyId);
 
         if (!(await lobbyWrapper.roundActive())) {
             if (!await lobbyWrapper.hasPlayer(playerId))
@@ -1249,17 +1270,34 @@ router.get('/', async (req, res) => {
             res.render('bingo/bingo-lobby', {
                 players: playerData,
                 isAdmin: (playerId === admin.id),
+                adminId: admin.id,
                 words: words,
-                wordString: words.join('\n')});
+                wordString: words.join('\n'),
+                gridSize: await lobbyWrapper.gridSize()
+            });
         } else {
             if (await lobbyWrapper.hasPlayer(playerId)) {
                 let playerData = await getPlayerData(lobbyWrapper);
                 let grid = await getGridData(lobbyId, playerId);
-                res.render('bingo/bingo-round', {players: playerData, grid: grid});
+                let admin = await lobbyWrapper.admin();
+                res.render('bingo/bingo-round', {
+                    players: playerData,
+                    grid: grid,
+                    isAdmin: (playerId === admin.id),
+                    adminId: admin.id
+                });
             } else {
                 let playerData = await getPlayerData(lobbyWrapper);
                 let admin = await lobbyWrapper.admin();
-                res.render('bingo/bingo-lobby', {players: playerData, isAdmin: (playerId === admin.id)});
+                let words = await getWordsData(lobbyWrapper);
+                res.render('bingo/bingo-lobby', {
+                    players: playerData,
+                    isAdmin: (playerId === admin.id),
+                    adminId: admin.id,
+                    words: words,
+                    wordString: words.join('\n'),
+                    gridSize: await lobbyWrapper.gridSize()
+                });
             }
         }
     } else {
@@ -1314,15 +1352,15 @@ router.graphqlResolver = async (req, res) => {
             return {
                 join: async () => {
                     if (playerId) {
-                        let result = await bdm.addPlayerToLobby(playerId, lobbyId);
-                        return new LobbyWrapper(result.lobby_id);
+                        await lobbyWrapper.addPlayer(playerId);
+                        return lobbyWrapper;
                     } else {
                         res.status(400);
                     }
                 },
                 leave: async () => {
                     if (playerId) {
-                        await bdm.removePlayerFromLobby(playerId, lobbyId);
+                        await lobbyWrapper.removePlayer(playerId);
                         return true;
                     } else {
                         res.status(400);
@@ -1331,8 +1369,8 @@ router.graphqlResolver = async (req, res) => {
                 kickPlayer: async ({pid}) => {
                     let admin = await lobbyWrapper.admin();
                     if (admin.id === playerId) {
-                        let result = await bdm.removePlayerFromLobby(pid, lobbyId);
-                        return new LobbyWrapper(result.id, result);
+                        await lobbyWrapper.removePlayer(pid);
+                        return new PlayerWrapper(pid);
                     }
                 },
                 startRound: async () => {
@@ -1369,7 +1407,7 @@ router.graphqlResolver = async (req, res) => {
                 submitBingo: async () => {
                     let isBingo = await (await (new PlayerWrapper(playerId)).grid({lobbyId: lobbyId})).bingo();
                     let currentRound = await lobbyWrapper.currentRound();
-                    if (isBingo) {
+                    if (isBingo && await lobbyWrapper.hasPlayer(playerId)) {
                         let result = await currentRound.setWinner(playerId);
                         if (result)
                             return currentRound;

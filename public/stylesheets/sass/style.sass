@@ -46,10 +46,19 @@ button:active
   background-color: lighten($secondary, 15%)
 
 input
-  @include default-element
+  background-color: lighten($primary, 10%)
+  color: $primarySurface
+  border: 1px solid $inactive
+  transition-duration: 0.2s
   font-size: 1.2rem
-  background-color: lighten($primary, 15%)
   padding: 0.7rem
+
+input:focus
+  background-color: lighten($primary, 15%)
+  border: 1px solid $primarySurface
+
+input[type='number']
+  text-align: center
 
 textarea
   background-color: lighten($primary, 15%)

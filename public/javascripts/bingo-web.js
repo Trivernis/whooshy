@@ -102,6 +102,32 @@ async function leaveLobby() {
 }
 
 /**
+ * Kicks a player by id.
+ * @param playerId
+ * @returns {Promise<void>}
+ */
+async function kickPlayer(pid) {
+    let response = await postGraphqlQuery(`
+    mutation ($lobbyId: ID!, $playerId:ID!) {
+      bingo {
+        mutateLobby(id: $lobbyId) {
+          kickPlayer(pid: $playerId) {
+            id
+          }
+        }
+      }
+    }
+    `, {lobbyId: getLobbyParam(), playerId: pid});
+    if (response.status === 200) {
+        let kickId = response.data.bingo.mutateLobby.kickPlayer.id;
+        document.querySelector(`.playerEntryContainer[b-pid='${kickId}'`).remove();
+    } else {
+        showError('Failed to kick player!');
+        console.error(response);
+    }
+}
+
+/**
  * Sends a message to the chat
  * @returns {Promise<void>}
  */
@@ -138,21 +164,27 @@ async function sendChatMessage() {
 /**
  * Sets the words for the lobby
  * @param words
+ * @param gridSize
  * @returns {Promise<LobbyWrapper.words|*|properties.words|{default, type}|boolean>}
  */
-async function setLobbyWords(words) {
+async function setLobbySettings(words, gridSize) {
+    gridSize = Number(gridSize);
     let response = await postGraphqlQuery(`
-    mutation($lobbyId:ID!, $words:[String!]!){
+    mutation ($lobbyId: ID!, $words: [String!]!, $gridSize:Int!) {
       bingo {
-        mutateLobby(id:$lobbyId) {
-          setWords(words:$words) {
+        mutateLobby(id: $lobbyId) {
+          setWords(words: $words) {
             words {
               content
             }
           }
+          setGridSize(gridSize: $gridSize) {
+            gridSize
+          }
         }
       }
-    }`, {lobbyId: getLobbyParam(), words: words});
+    }
+    `, {lobbyId: getLobbyParam(), words: words, gridSize: gridSize});
     if (response.status === 200) {
         return response.data.bingo.mutateLobby.setWords.words;
     } else {
@@ -168,7 +200,8 @@ async function setLobbyWords(words) {
 async function startRound() {
     let textinput = document.querySelector('#input-bingo-words');
     let words = getLobbyWords();
-    let resultWords = await setLobbyWords(words);
+    let gridSize = document.querySelector('#input-grid-size').value || 3;
+    let resultWords = await setLobbySettings(words, gridSize);
     textinput.value = resultWords.map(x => x.content).join('\n');
     let response = await postGraphqlQuery(`
     mutation($lobbyId:ID!){
@@ -351,11 +384,17 @@ function addChatMessage(messageObject) {
  * Adds a player to the player view
  * @param player
  */
-function addPlayer(player) {
+function addPlayer(player, options) {
     let playerContainer = document.createElement('div');
     playerContainer.setAttribute('class', 'playerEntryContainer');
     playerContainer.setAttribute('b-pid', player.id);
-    playerContainer.innerHTML = `<span class="playernameSpan">${player.username}</span>`;
+
+    if (options.isAdmin && player.id !== options.admin)
+        playerContainer.innerHTML = `<button class="kickPlayerButton" onclick="kickPlayer(${player.id})">❌</button>`;
+    playerContainer.innerHTML += `<span class="playernameSpan">${player.username}</span>`;
+
+    if (player.id === options.admin)
+        playerContainer.innerHTML += "<span class='adminSpan'> 👑</span>";
     document.querySelector('#player-list').appendChild(playerContainer);
 }
 
@@ -403,22 +442,31 @@ async function refreshChat() {
 async function refreshPlayers() {
     try {
         let response = await postGraphqlQuery(`
-        query($lobbyId:ID!){
+        query ($lobbyId: ID!) {
           bingo {
-            lobby(id:$lobbyId) {
+            player {
+              id
+            }
+            lobby(id: $lobbyId) {
               players {
                 id
                 username
-                wins(lobbyId:$lobbyId)
+                wins(lobbyId: $lobbyId)
+              }
+              admin {
+                id
               }
             }
           }
-        }`, {lobbyId: getLobbyParam()});
+        }
+        `, {lobbyId: getLobbyParam()});
         if (response.status === 200) {
             let players = response.data.bingo.lobby.players;
+            let adminId = response.data.bingo.lobby.admin.id;
+            let isAdmin = response.data.bingo.player.id === adminId;
             for (let player of players)
                 if (!document.querySelector(`.playerEntryContainer[b-pid="${player.id}"]`))
-                    addPlayer(player);
+                    addPlayer(player, {admin: adminId, isAdmin: isAdmin});
         } else {
             showError('Failed to refresh players');
             console.error(response);
@@ -572,7 +620,9 @@ window.addEventListener("unhandledrejection", function (promiseRejectionEvent) {
 window.addEventListener("keydown", async (e) => {
     if (e.which === 83 && (navigator.platform.match("Mac") ? e.metaKey : e.ctrlKey)) {
         e.preventDefault();
-        if (document.querySelector('#input-bingo-words'))
-            await setLobbyWords(getLobbyWords());
+        if (document.querySelector('#input-bingo-words')) {
+            let gridSize = document.querySelector('#input-grid-size').value || 3;
+            await setLobbySettings(getLobbyWords(), gridSize);
+        }
     }
 }, false);

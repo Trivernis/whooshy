@@ -7,6 +7,8 @@ block content
         div(id='container-lobby-settings')
             h1 Words
             if isAdmin
+                span Grid Size:
+                input(id='input-grid-size' type='number' value=gridSize)
                 textarea(id='input-bingo-words')= wordString
                 button(id='button-round-start' onclick='startRound()') Start Round
             else

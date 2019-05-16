@@ -3,4 +3,8 @@ div(id='container-players')
     div(id='player-list')
         each player in players
             div(class='playerEntryContainer', b-pid=`${player.id}`)
+                if isAdmin && player.id !== adminId
+                    button(class='kickPlayerButton' onclick=`kickPlayer(${player.id})`) ❌
                 span(class='playerNameSpan')= player.username
+                if player.id === adminId
+                    span(class='adminSpan')  👑

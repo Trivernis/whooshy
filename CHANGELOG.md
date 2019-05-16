@@ -23,12 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - css for startpage (wip)
 - file for css animations
 - pug file for startpage
+- bingo lobbys
+- kick function for bingo
+- grid size input
 
 ## Changed
 
 - changed export of `app.js` to the asynchronous init function that returns the app object
 - `bin/www` now calls the init function of `app.js`
-- graphql api
+- graphql bingo api
+- bingo frontend
 
 ### Removed
 

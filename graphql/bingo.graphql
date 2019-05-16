@@ -19,7 +19,7 @@ type LobbyMutation {
     leave: Boolean
 
     "kicks a player from the lobby"
-    kickPlayer(playerId: ID!): BingoLobby
+    kickPlayer(pid: ID!): BingoPlayer
 
     "starts a round in a lobby if the user is the admin"
     startRound: BingoRound
