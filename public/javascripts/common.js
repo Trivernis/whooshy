@@ -9,11 +9,12 @@
 function postData(url, postBody) {
     let request = new XMLHttpRequest();
     return new Promise((resolve, reject) => {
-
+        let start = new Date().getTime();
         request.onload = () => {
             resolve({
                 status: request.status,
-                data: request.responseText
+                data: request.responseText,
+                ping: (new Date().getTime() - start)
             });
         };
 
@@ -23,7 +24,11 @@ function postData(url, postBody) {
 
         request.open('POST', url, true);
         request.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-        request.send(JSON.stringify(postBody));
+        try {
+            request.send(JSON.stringify(postBody));
+        } catch (err) {
+            return err;
+        }
     });
 }
 

@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bingo lobbys
 - kick function for bingo
 - grid size input
+- bingo status bar
 
 ## Changed
 
@@ -33,11 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `bin/www` now calls the init function of `app.js`
 - graphql bingo api
 - bingo frontend
+- moved some bingo pug files to ./bingo/includes/
 
 ### Removed
 
 - sqlite3 sesssion storage
 - old frontend
+- old bingo pug files
 
 ### Fixed
 

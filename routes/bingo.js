@@ -1,5 +1,6 @@
 const express = require('express'),
     router = express.Router(),
+    { GraphQLError } = require('graphql'),
     mdEmoji = require('markdown-it-emoji'),
     mdMark = require('markdown-it-mark'),
     mdSmartarrows = require('markdown-it-smartarrows'),
@@ -609,7 +610,16 @@ class GridWrapper {
      */
     async toggleField(row, column) {
         let result = await bdm.toggleGridFieldSubmitted(this.id, row, column);
-        return new GridFieldWrapper(result);
+        let gridField = new GridFieldWrapper(result);
+        let username = await (await this.player()).username();
+        let word = await gridField.word.content();
+        if (gridField.submitted)
+            await bdm.addInfoMessage(this.lobbyId,
+                `${username} heared "${word}"`);
+        else
+            await bdm.addInfoMessage(this.lobbyId,
+                `${username} unheared "${word}"`);
+        return gridField;
     }
 }
 
@@ -1186,13 +1196,16 @@ function checkBingo(fg) {
  */
 async function getPlayerData(lobbyWrapper) {
     let playerData = [];
+    let adminId = (await lobbyWrapper.admin()).id;
 
     for (let player of await lobbyWrapper.players())
         playerData.push({
             id: player.id,
             wins: await player.wins({lobbyId: lobbyWrapper.id}),
-            username: await player.username()}
-        );
+            username: await player.username(),
+            isAdmin: (player.id === adminId)
+        });
+    playerData.sort((a, b) => (a.isAdmin? -1 : (b.wins - a.wins) || a.id));
     return playerData;
 }
 
@@ -1255,10 +1268,10 @@ router.use(async (req, res, next) => {
 
 router.get('/', async (req, res) => {
     let playerId = req.session.bingoPlayerId;
-    if (!playerId)
-        req.session.bingoPlayerId = playerId = (await bdm.addPlayer(shuffleArray(playerNames)[0])).id;
+    // if (!playerId)
+    //     req.session.bingoPlayerId = playerId = (await bdm.addPlayer(shuffleArray(playerNames)[0])).id;
     let lobbyWrapper = new LobbyWrapper(req.query.g);
-    if (req.query.g && await lobbyWrapper.exists()) {
+    if (playerId && req.query.g && await lobbyWrapper.exists()) {
         let lobbyId = req.query.g;
 
         if (!(await lobbyWrapper.roundActive())) {
@@ -1338,12 +1351,14 @@ router.graphqlResolver = async (req, res) => {
             return new PlayerWrapper(playerId);
         },
         createLobby: async({gridSize}) => {
-            if (playerId) {
-                let result = await bdm.createLobby(playerId, gridSize);
-                return new LobbyWrapper(result.id);
-            } else {
-                res.status(400);
-            }
+            if (playerId)
+                if (gridSize > 0 && gridSize < 10) {
+                    let result = await bdm.createLobby(playerId, gridSize);
+                    return new LobbyWrapper(result.id);
+                } else {
+                    res.status(413);
+                }
+            res.status(400);
         },
         mutateLobby: async ({id}) => {
             let lobbyId = id;
@@ -1389,19 +1404,23 @@ router.graphqlResolver = async (req, res) => {
                 },
                 setWords: async({words}) => {
                     let admin = await lobbyWrapper.admin();
-                    if (admin.id === playerId) {
-                        await lobbyWrapper.setWords(words);
-                        return lobbyWrapper;
-                    } else {
-                        res.status(400);
-                    }
+                    if (admin.id === playerId)
+                        if (words.length < 10000) {
+                            await lobbyWrapper.setWords(words);
+                            return lobbyWrapper;
+                        } else {
+                            res.status(413);    // request entity too large
+                        }
+                    else
+                        res.status(403);        // forbidden
+
                 },
                 sendMessage: async ({message}) => {
                     if (await lobbyWrapper.hasPlayer(playerId)) {
                         let result = await bdm.addUserMessage(lobbyId, playerId, message);
                         return new MessageWrapper(result);
                     } else {
-                        res.status(400);
+                        res.status(401);        // unautorized
                     }
                 },
                 submitBingo: async () => {
@@ -1412,9 +1431,10 @@ router.graphqlResolver = async (req, res) => {
                         if (result)
                             return currentRound;
                         else
-                            res.status(400);
+                            res.status(500);
                     } else {
                         res.status(400);
+                        return new GraphQLError('Bingo check failed. This is not a bingo!');
                     }
                 },
                 toggleGridField: async ({location}) => {

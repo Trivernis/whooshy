@@ -56,6 +56,14 @@ async function submitUsername() {
 }
 
 /**
+ * TODO: real join logic
+ */
+async function joinLobby() {
+    await submitUsername();
+    window.location.reload();
+}
+
+/**
  * Creates a lobby and redirects to the lobby.
  * @returns {Promise<boolean>}
  */
@@ -136,7 +144,16 @@ async function sendChatMessage() {
     if (messageInput.value && messageInput.value.length > 0) {
         let message = messageInput.value;
         messageInput.value = '';
-        let response = await postGraphqlQuery(`
+        if (message === '/hideinfo' || message === '/showinfo') {
+            let jsStyle = document.querySelector('#js-style');
+            if (message === '/hideinfo')
+                jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {display: none}';
+            else
+                jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {}';
+            let chatContent = document.querySelector('#chat-content');
+            chatContent.scrollTop = chatContent.scrollHeight;
+        } else {
+            let response = await postGraphqlQuery(`
         mutation($lobbyId:ID!, $message:String!){
           bingo {
             mutateLobby(id:$lobbyId) {
@@ -151,12 +168,13 @@ async function sendChatMessage() {
             }
           }
         }`, {message: message, lobbyId: getLobbyParam()});
-        if (response.status === 200) {
-            addChatMessage(response.data.bingo.mutateLobby.sendMessage);
-        } else {
-            messageInput.value = message;
-            console.error(response);
-            showError('Error when sending message.');
+            if (response.status === 200) {
+                addChatMessage(response.data.bingo.mutateLobby.sendMessage);
+            } else {
+                messageInput.value = message;
+                console.error(response);
+                showError('Error when sending message.');
+            }
         }
     }
 }
@@ -195,7 +213,7 @@ async function setLobbySettings(words, gridSize) {
 
 /**
  * Starts a new round of bingo
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>}
  */
 async function startRound() {
     let textinput = document.querySelector('#input-bingo-words');
@@ -242,6 +260,8 @@ function getLobbyWords() {
 async function submitFieldToggle(wordPanel) {
     let row = Number(wordPanel.getAttribute('b-row'));
     let column = Number(wordPanel.getAttribute('b-column'));
+    let wordClass = wordPanel.getAttribute('class');
+    wordPanel.setAttribute('class', wordClass + ' pending');
     let response = await postGraphqlQuery(`
     mutation($lobbyId:ID!, $row:Int!, $column:Int!){
       bingo {
@@ -255,6 +275,7 @@ async function submitFieldToggle(wordPanel) {
         }
       }
     }`, {lobbyId: getLobbyParam(), row: row, column: column});
+    wordPanel.setAttribute('class', wordClass);
 
     if (response.status === 200) {
         wordPanel.setAttribute('b-sub', response.data.bingo.mutateLobby.toggleGridField.submitted);
@@ -325,7 +346,32 @@ function displayWinner(roundInfo) {
  * @param errorMessage
  */
 function showError(errorMessage) {
-    // TODO: Implement
+    let errorContainer = document.querySelector('#error-message');
+    let indicator = document.querySelector('#status-indicator');
+    indicator.setAttribute('status', 'error');
+    errorContainer.innerText = errorMessage;
+    setTimeout(() => {
+        errorContainer.innerText = '';
+        indicator.setAttribute('status', 'idle');
+    }, 5000);
+}
+
+/**
+ * Wraps a function in a status report to display the status
+ * @param func
+ */
+async function statusWrap(func) {
+    let indicator = document.querySelector('#status-indicator');
+    indicator.setAttribute('status', 'pending');
+    try {
+        await func();
+        indicator.setAttribute('status', 'success');
+        setTimeout(() => {
+            indicator.setAttribute('status', 'idle');
+        }, 1000);
+    } catch (err) {
+        showError(err? err.message : 'Unknown error');
+    }
 }
 
 /**
@@ -365,6 +411,7 @@ async function loadWinnerInfo() {
 function addChatMessage(messageObject) {
     let msgSpan = document.createElement('span');
     msgSpan.setAttribute('class', 'chatMessage');
+    msgSpan.setAttribute('msg-type', messageObject.type);
     msgSpan.setAttribute('msg-id', messageObject.id);
     if (messageObject.type === "USER") {
         msgSpan.innerHTML = `
@@ -390,7 +437,7 @@ function addPlayer(player, options) {
     playerContainer.setAttribute('b-pid', player.id);
 
     if (options.isAdmin && player.id !== options.admin)
-        playerContainer.innerHTML = `<button class="kickPlayerButton" onclick="kickPlayer(${player.id})">❌</button>`;
+        playerContainer.innerHTML = `<button class="kickPlayerButton" onclick="kickPlayer(${player.id})">⨯</button>`;
     playerContainer.innerHTML += `<span class="playernameSpan">${player.username}</span>`;
 
     if (player.id === options.admin)
@@ -499,7 +546,7 @@ function checkPlayerRefresh(players) {
         if (!document.querySelector(`.playerEntryContainer[b-pid="${player.id}"]`))
             playerRefresh = true;
     if (playerRefresh)
-        refreshPlayers();
+        statusWrap(refreshPlayers);
 }
 
 /**
@@ -512,7 +559,7 @@ function checkMessageRefresh(messages) {
         if (!document.querySelector(`.chatMessage[msg-id="${message.id}"]`))
             messageRefresh = true;
     if (messageRefresh)
-        refreshChat();
+        statusWrap(refreshChat);
 }
 
 /**
@@ -613,7 +660,7 @@ async function refreshRound() {
 
 window.addEventListener("unhandledrejection", function (promiseRejectionEvent) {
     promiseRejectionEvent.promise.catch(err => console.log(err));
-    showError('Connection problems... Is the server down?');
+    showError('Connection problems...');
 });
 
 // prevent ctrl + s
@@ -622,7 +669,7 @@ window.addEventListener("keydown", async (e) => {
         e.preventDefault();
         if (document.querySelector('#input-bingo-words')) {
             let gridSize = document.querySelector('#input-grid-size').value || 3;
-            await setLobbySettings(getLobbyWords(), gridSize);
+            await statusWrap(async () => await setLobbySettings(getLobbyWords(), gridSize));
         }
     }
 }, false);

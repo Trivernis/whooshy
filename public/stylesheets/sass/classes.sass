@@ -27,16 +27,17 @@
   border-radius: 1em
   transition-duration: 1s
 
-.statusIndicator:before
-  content: ""
+.statusIndicator[status='success']
+  background-color: $success
 
-.statusIndicator[status='success']:before
-  content: "✓"
-  color: $success
+.statusIndicator[status='error']
+  background-color: $error
 
-.statusIndicator[status='error']:before
-  content: "❌"
-  color: $error
+.statusIndicator[status='idle']
+  background-color: $inactive
+  animation-name: pulse-opacity
+  animation-duration: 5s
+  animation-iteration-count: infinite
 
 .statusIndicator[status='pending']
   background-color: $pending
@@ -44,7 +45,7 @@
   animation-duration: 5s
   animation-iteration-count: infinite
 
-.idle
+.pending
   background-color: $pending !important
   animation-name: pulse-opacity
   animation-duration: 2s

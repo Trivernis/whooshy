@@ -1,24 +1,26 @@
-include bingo-layout
+include includes/bingo-layout
 
 block content
     div(id='container-bingo-round')
-        include bingo-players
-        include bingo-chat
+        include includes/bingo-players
+        include includes/bingo-chat
+        include includes/bingo-statusbar
         if grid.bingo
             div(id='container-bingo-button')
-                button(id='bingo-button' onclick='submitBingo()') Bingo!
+                button(id='bingo-button' onclick='statusWrap(submitBingo)') Bingo!
         else
             div(id='container-bingo-button' class='hidden')
-                button(id='bingo-button' onclick='submitBingo()') Bingo!
+                button(id='bingo-button' onclick='statusWrap(submitBingo)') Bingo!
         div(id='container-grid')
-            each val in grid.fields
-                div(class='bingoWordRow')
-                    each field in val
-                        div(
-                            class='bingoWordPanel'
-                            onclick=`submitFieldToggle(this)`
-                            b-row=field.row
-                            b-column=field.column
-                            b-sub=`${field.submitted}`)
-                            span= field.word
+            div(id='grid-table')
+                each val in grid.fields
+                    div(class='bingoWordRow')
+                        each field in val
+                            div(
+                                class='bingoWordPanel'
+                                onclick=`statusWrap(() => submitFieldToggle(this))`
+                                b-row=field.row
+                                b-column=field.column
+                                b-sub=`${field.submitted}`)
+                                span= field.word
         script(type='text/javascript') refreshRound();

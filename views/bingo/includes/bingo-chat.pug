@@ -1,0 +1,10 @@
+div(id='container-chat')
+    style(id='js-style')
+    div(id='chat-content')
+    input(
+        id='chat-input'
+        type='text'
+        placeholder='send message'
+        onkeypress='submitOnEnter(event, () => statusWrap(sendChatMessage))'
+        maxlength="250"
+        autocomplete='off')
