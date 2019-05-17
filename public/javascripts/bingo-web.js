@@ -125,7 +125,7 @@ async function leaveLobby() {
 
 /**
  * Kicks a player by id.
- * @param playerId
+ * @param pid
  * @returns {Promise<void>}
  */
 async function kickPlayer(pid) {
@@ -167,6 +167,7 @@ async function executeCommand(message) {
             /hideinfo - hides all info messages <br>
             /showinfo - shows all info messages <br>
             /ping - shows the current ping <br>
+            /abortround - aborts the current round <br>
             `);
             break;
         case '/hideinfo':
@@ -177,6 +178,9 @@ async function executeCommand(message) {
             break;
         case '/ping':
             reply(`Ping: ${await ping()} ms`);
+            break;
+        case '/abortround':
+            reply(await setRoundFinished());
             break;
         default:
             reply('Unknown command');
@@ -335,6 +339,30 @@ async function submitFieldToggle(wordPanel) {
 }
 
 /**
+ * Sets the round status to FINISHED
+ * @returns {Promise<string>}
+ */
+async function setRoundFinished() {
+    let response = await postGraphqlQuery(`
+    mutation($lobbyId:ID!){
+      bingo {
+        mutateLobby(id:$lobbyId) {
+          setRoundStatus(status:FINISHED) {
+            status
+          }
+        }
+      }
+    }`, {lobbyId: getLobbyParam()});
+
+    if (response.status === 200 && response.data.bingo.mutateLobby.setRoundStatus) {
+        return 'Set round to finished';
+    } else {
+        console.error(response);
+        showError('Failed to set round status');
+    }
+}
+
+/**
  * Submits bingo
  * @returns {Promise<void>}
  */
@@ -442,7 +470,10 @@ async function loadWinnerInfo() {
     }`, {lobbyId: getLobbyParam()});
     if (response.status === 200) {
         let roundInfo = response.data.bingo.lobby.currentRound;
-        displayWinner(roundInfo);
+        if (roundInfo.winner)
+            displayWinner(roundInfo);
+        else
+            window.location.reload();
     } else {
         console.error(response);
         showError('Failed to get round information');

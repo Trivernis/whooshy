@@ -1064,6 +1064,18 @@ class LobbyWrapper {
         let currentRound = await this.currentRound();
         return currentRound && (await currentRound.status()) === 'ACTIVE';
     }
+
+    /**
+     * Sets the status of the current round
+     * @param status {String} - the status
+     * @returns {Promise<RoundWrapper>}
+     */
+    async setRoundStatus(status) {
+        let currentRound = await this.currentRound();
+        await currentRound.updateStatus(status);
+        await bdm.addInfoMessage(this.id, `Admin set round status to ${status}`);
+        return currentRound;
+    }
 }
 
 
@@ -1386,6 +1398,9 @@ router.graphqlResolver = async (req, res) => {
                     if (admin.id === playerId) {
                         await lobbyWrapper.removePlayer(pid);
                         return new PlayerWrapper(pid);
+                    } else {
+                        res.status(403);
+                        return new GraphQLError('You are not an admin');
                     }
                 },
                 startRound: async () => {
@@ -1393,6 +1408,18 @@ router.graphqlResolver = async (req, res) => {
                     if (admin.id === playerId) {
                         await lobbyWrapper.startNewRound();
                         return lobbyWrapper.currentRound();
+                    } else {
+                        res.status(403);
+                        return new GraphQLError('You are not an admin');
+                    }
+                },
+                setRoundStatus: async ({status}) => {
+                    let admin = await lobbyWrapper.admin();
+                    if (admin.id === playerId) {
+                        return await lobbyWrapper.setRoundStatus(status);
+                    } else {
+                        res.status(403);
+                        return new GraphQLError('You are not an admin');
                     }
                 },
                 setGridSize: async ({gridSize}) => {
@@ -1400,6 +1427,9 @@ router.graphqlResolver = async (req, res) => {
                     if (admin.id === playerId) {
                         await lobbyWrapper.setGridSize(gridSize);
                         return lobbyWrapper;
+                    } else {
+                        res.status(403);
+                        return new GraphQLError('You are not an admin');
                     }
                 },
                 setWords: async({words}) => {
@@ -1410,6 +1440,7 @@ router.graphqlResolver = async (req, res) => {
                             return lobbyWrapper;
                         } else {
                             res.status(413);    // request entity too large
+                            return new GraphQLError('Too many words');
                         }
                     else
                         res.status(403);        // forbidden
@@ -1421,6 +1452,7 @@ router.graphqlResolver = async (req, res) => {
                         return new MessageWrapper(result);
                     } else {
                         res.status(401);        // unautorized
+                        return new GraphQLError('You are not in the lobby');
                     }
                 },
                 submitBingo: async () => {
@@ -1428,10 +1460,13 @@ router.graphqlResolver = async (req, res) => {
                     let currentRound = await lobbyWrapper.currentRound();
                     if (isBingo && await lobbyWrapper.hasPlayer(playerId)) {
                         let result = await currentRound.setWinner(playerId);
-                        if (result)
+                        let username = await new PlayerWrapper(playerId).username();
+                        if (result) {
+                            await bdm.addInfoMessage(lobbyId, `**${username}** won!`);
                             return currentRound;
-                        else
+                        } else {
                             res.status(500);
+                        }
                     } else {
                         res.status(400);
                         return new GraphQLError('Bingo check failed. This is not a bingo!');

@@ -24,6 +24,9 @@ type LobbyMutation {
     "starts a round in a lobby if the user is the admin"
     startRound: BingoRound
 
+    "sets the round status"
+    setRoundStatus(status: RoundStatus): BingoRound
+
     "sets the new gridsize for the lobby"
     setGridSize(gridSize: Int!): BingoLobby
 

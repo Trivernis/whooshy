@@ -49,3 +49,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - code style issues
 - Bingo button not shown on refresh
 - bingo chat style (images too large)
+- backend now returns precise error messages
