@@ -50,3 +50,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bingo button not shown on refresh
 - bingo chat style (images too large)
 - backend now returns precise error messages
+- setting words won't result in deleting all of them and resaving
+- words can now only be set when no round is active

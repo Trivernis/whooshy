@@ -160,6 +160,13 @@ addWord:
 clearLobbyWords:
   sql: DELETE FROM bingo.words WHERE lobby_id = $1;
 
+# deletes a word of a lobby
+# params:
+# - {Number} - the id of the lobby
+# - {Number} - the id of the word
+removeLobbyWord:
+  sql: DELETE FROM bingo.words WHERE lobby_id = $1 AND id = $2;
+
 # returns all words for a bingo game (lobby)
 # params:
 # - {Number} - the id of the bingo lobby
@@ -179,6 +186,12 @@ getWordInfo:
 # - {Number} - the id of the round
 addGrid:
   sql: INSERT INTO bingo.grids (player_id, lobby_id, round_id) VALUES ($1, $2, $3) RETURNING *;
+
+# deletes all grids of a lobby
+# params:
+# - {Number} - the id of the lobby
+clearLobbyGrids:
+  sql: DELETE FROM bingo.grids WHERE lobby_id = $1;
 
 # returns the grid entry for a player and lobby id
 # params:

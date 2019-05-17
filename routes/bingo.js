@@ -237,6 +237,16 @@ class BingoDataManager {
     }
 
     /**
+     * Removes a word from the lobby
+     * @param lobbyId {Number} - the id of the lobby
+     * @param wordId {Number} - the id of the word
+     * @returns {Promise<*>}
+     */
+    async removeWordFromLobby(lobbyId, wordId) {
+        return await this._queryFirstResult(this.queries.removeLobbyWord.sql, [lobbyId, wordId]);
+    }
+
+    /**
      * Returns all words used in a lobby
      * @param lobbyId {Number} - the id of the lobby
      * @returns {Promise<void>}
@@ -301,6 +311,15 @@ class BingoDataManager {
      */
     async addGrid(lobbyId, playerId, roundId) {
         return await this._queryFirstResult(this.queries.addGrid.sql, [playerId, lobbyId, roundId]);
+    }
+
+    /**
+     * Clears all grids for a lobby.
+     * @param lobbyId {Number} - the id of the lobby
+     * @returns {Promise<*>}
+     */
+    async clearGrids(lobbyId) {
+        return await this._queryFirstResult(this.queries.clearLobbyGrids.sql, [lobbyId]);
     }
 
     /**
@@ -1019,17 +1038,62 @@ class LobbyWrapper {
     }
 
     /**
+     * Adds a word to the lobby
+     * @param word
+     * @returns {Promise<void>}
+     */
+    async addWord(word) {
+        await bdm.addWordToLobby(this.id, word);
+    }
+
+    /**
+     * Removes a word from the lobby
+     * @param wordId
+     * @returns {Promise<void>}
+     */
+    async removeWord(wordId) {
+        await bdm.removeWordFromLobby(this.id, wordId);
+    }
+
+    /**
      * Sets the words of the lobby
      * @param words
      * @returns {Promise<void>}
      */
     async setWords(words) {
-        if (words.length > 0) {
-            await bdm.clearLobbyWords(this.id);
-            for (let word of words)
-                // eslint-disable-next-line no-await-in-loop
-                await bdm.addWordToLobby(this.id, word);
+        if (words.length > 0 && !await this.roundActive()) {
+            let {newWords, removedWords} = await this._filterWords(words);
+            for (let word of newWords)
+                await this.addWord(word);
+            for (let word of removedWords)
+                 await this.removeWord(word.id);
         }
+    }
+
+    /**
+     * Filters the bingo words
+     * @param words
+     * @returns {Promise<{removedWords: *[], newWords: *[]}>}
+     * @private
+     */
+    async _filterWords(words) {
+        let curWords = await this.words();
+        let currentWords = [];
+        let currentWordContent = [];
+        for (let word of curWords) {
+            currentWordContent.push(await word.content());
+            currentWords.push({
+                id: word.id,
+                content: (await word.content())
+            });
+        }
+        let newWords = words.filter(x => (!currentWordContent.includes(x)));
+        let removedWords = currentWords.filter(x => !words.includes(x.content));
+
+        return {
+            newWords: newWords,
+            removedWords: removedWords
+        };
     }
 
     /**
@@ -1074,6 +1138,9 @@ class LobbyWrapper {
         let currentRound = await this.currentRound();
         await currentRound.updateStatus(status);
         await bdm.addInfoMessage(this.id, `Admin set round status to ${status}`);
+
+        if (status === 'FINISHED')
+            await bdm.clearGrids(this.id);
         return currentRound;
     }
 }
@@ -1463,6 +1530,7 @@ router.graphqlResolver = async (req, res) => {
                         let username = await new PlayerWrapper(playerId).username();
                         if (result) {
                             await bdm.addInfoMessage(lobbyId, `**${username}** won!`);
+                            await bdm.clearGrids(lobbyId);
                             return currentRound;
                         } else {
                             res.status(500);

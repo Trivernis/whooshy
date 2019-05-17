@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS bingo.grids (
 -- grids_words table
 CREATE TABLE IF NOT EXISTS bingo.grid_words (
     grid_id serial references bingo.grids(id) ON DELETE CASCADE,
-    word_id serial references bingo.words(id) ON DELETE CASCADE,
+    word_id serial references bingo.words(id) ON DELETE RESTRICT,
     grid_row integer NOT NULL,
     grid_column integer NOT NULL,
     submitted boolean DEFAULT false,
