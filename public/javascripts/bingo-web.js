@@ -56,6 +56,20 @@ async function submitUsername() {
 }
 
 /**
+ * Function that displays the ping in the console.
+ * @returns {Promise<number>}
+ */
+async function ping() {
+    let start = new Date().getTime();
+    let response = await postGraphqlQuery(`
+    query {
+      time
+    }`);
+    console.log(`Ping: ${(new Date().getTime()) - start} ms`);
+    return (new Date().getTime()) - start;
+}
+
+/**
  * TODO: real join logic
  */
 async function joinLobby() {
@@ -136,6 +150,43 @@ async function kickPlayer(pid) {
 }
 
 /**
+ * Executes a command
+ * @param message {String} - the message
+ */
+async function executeCommand(message) {
+    function reply(content) {
+        addChatMessage({content: content, htmlContent: content, type: 'INFO'});
+    }
+    let jsStyle = document.querySelector('#js-style');
+    message = message.replace(/\s/g, '');
+    switch(message) {
+        case '/help':
+            reply(`
+            <b>Commands: </b><br>
+            /help - shows this help <br>
+            /hideinfo - hides all info messages <br>
+            /showinfo - shows all info messages <br>
+            /ping - shows the current ping <br>
+            `);
+            break;
+        case '/hideinfo':
+            jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {display: none}';
+            break;
+        case '/showinfo':
+            jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {}';
+            break;
+        case '/ping':
+            reply(`Ping: ${await ping()} ms`);
+            break;
+        default:
+            reply('Unknown command');
+            break;
+    }
+    let chatContent = document.querySelector('#chat-content');
+    chatContent.scrollTop = chatContent.scrollHeight;
+}
+
+/**
  * Sends a message to the chat
  * @returns {Promise<void>}
  */
@@ -144,14 +195,8 @@ async function sendChatMessage() {
     if (messageInput.value && messageInput.value.length > 0) {
         let message = messageInput.value;
         messageInput.value = '';
-        if (message === '/hideinfo' || message === '/showinfo') {
-            let jsStyle = document.querySelector('#js-style');
-            if (message === '/hideinfo')
-                jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {display: none}';
-            else
-                jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {}';
-            let chatContent = document.querySelector('#chat-content');
-            chatContent.scrollTop = chatContent.scrollHeight;
+        if (/^\/\.*/g.test(message)) {
+            await executeCommand(message);
         } else {
             let response = await postGraphqlQuery(`
         mutation($lobbyId:ID!, $message:String!){

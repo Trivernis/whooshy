@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kick function for bingo
 - grid size input
 - bingo status bar
+- bingo chat commands
 
 ## Changed
 
@@ -47,3 +48,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - mobile layout
 - code style issues
 - Bingo button not shown on refresh
+- bingo chat style (images too large)
