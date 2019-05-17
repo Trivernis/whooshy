@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS bingo.lobby_players (
 
 -- words table
 CREATE TABLE IF NOT EXISTS bingo.words (
-    id serial UNIQUE PRIMARY KEY,
+    id bigserial UNIQUE PRIMARY KEY,
     lobby_id serial references bingo.lobbys(id) ON DELETE CASCADE,
     heared integer DEFAULT 0 NOT NULL,
     content varchar(254) NOT NULL
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS bingo.words (
 
 -- messages table
 CREATE TABLE IF NOT EXISTS bingo.messages (
-    id serial UNIQUE PRIMARY KEY,
+    id bigserial UNIQUE PRIMARY KEY,
     content varchar(255) NOT NULL,
     player_id integer,
     lobby_id serial references bingo.lobbys(id) ON DELETE CASCADE,
