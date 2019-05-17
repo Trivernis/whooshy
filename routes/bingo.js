@@ -615,10 +615,10 @@ class GridWrapper {
         let word = await gridField.word.content();
         if (gridField.submitted)
             await bdm.addInfoMessage(this.lobbyId,
-                `${username} heared "${word}"`);
+                `${username} toggled "${word}"`);
         else
             await bdm.addInfoMessage(this.lobbyId,
-                `${username} unheared "${word}"`);
+                `${username} untoggled "${word}"`);
         return gridField;
     }
 }
