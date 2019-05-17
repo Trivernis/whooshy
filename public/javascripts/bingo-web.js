@@ -33,7 +33,20 @@ async function submitUsername() {
     let username = unameInput.value.replace(/^\s+|\s+$/g, '');
 
     if (username.length > 1) {
-        let response = await postGraphqlQuery(`
+        await setUsername(username);
+    } else {
+        showError('You need to provide a username (minimum 2 characters)!');
+        return false;
+    }
+}
+
+/**
+ * Sets the username for a user
+ * @param username {String} - the username
+ * @returns {Promise<boolean>}
+ */
+async function setUsername(username) {
+    let response = await postGraphqlQuery(`
         mutation($username:String!) {
           bingo {
             setUsername(username: $username) {
@@ -42,15 +55,11 @@ async function submitUsername() {
             }
           }
         }`, {username: username});
-        if (response.status === 200) {
-            return true;
-        } else {
-            showError(`Failed to submit username. HTTP Error: ${response.status}`);
-            console.error(response);
-            return false;
-        }
+    if (response.status === 200) {
+        return true;
     } else {
-        showError('You need to provide a username (minimum 2 characters)!');
+        showError(`Failed to submit username. HTTP Error: ${response.status}`);
+        console.error(response);
         return false;
     }
 }
@@ -158,36 +167,49 @@ async function executeCommand(message) {
         addChatMessage({content: content, htmlContent: content, type: 'INFO'});
     }
     let jsStyle = document.querySelector('#js-style');
-    message = message.replace(/\s/g, '');
-    switch(message) {
-        case '/help':
-            reply(`
-            <b>Commands: </b><br>
+    message = message.replace(/\s+$/g, '');
+    let command = /(\/\w+) ?(.*)?/g.exec(message);
+    if (command && command.length >= 2) {
+        switch(command[1]) {
+            case '/help':
+                reply(`
+            <br><b>Commands: </b><br>
             /help - shows this help <br>
             /hideinfo - hides all info messages <br>
             /showinfo - shows all info messages <br>
             /ping - shows the current ping <br>
+            /username {Username} - sets the username <br><br>
+            Admin commands: <br>
             /abortround - aborts the current round <br>
             `);
-            break;
-        case '/hideinfo':
-            jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {display: none}';
-            break;
-        case '/showinfo':
-            jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {}';
-            break;
-        case '/ping':
-            reply(`Ping: ${await ping()} ms`);
-            break;
-        case '/abortround':
-            reply(await setRoundFinished());
-            break;
-        default:
-            reply('Unknown command');
-            break;
+                break;
+            case '/hideinfo':
+                jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {display: none}';
+                break;
+            case '/showinfo':
+                jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {}';
+                break;
+            case '/ping':
+                reply(`Ping: ${await ping()} ms`);
+                break;
+            case '/abortround':
+                reply(await setRoundFinished());
+                break;
+            case '/username':
+                if (command[2]) {
+                    await setUsername(command[2]);
+                    reply(`Your username is <b>${command[2]}</b> now.`)
+                } else {
+                    reply('You need to provide a username');
+                }
+                break;
+            default:
+                reply('Unknown command');
+                break;
+        }
+        let chatContent = document.querySelector('#chat-content');
+        chatContent.scrollTop = chatContent.scrollHeight;
     }
-    let chatContent = document.querySelector('#chat-content');
-    chatContent.scrollTop = chatContent.scrollHeight;
 }
 
 /**
