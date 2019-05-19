@@ -1,0 +1,29 @@
+@import ../vars
+@import ../mixins
+
+#content
+  display: grid
+  grid-template: 25% 50% 25% / 25% 50% 25%
+  height: 100%
+  width: 100%
+  position: absolute
+  top: 0
+  left: 0
+
+#info
+  @include gridPosition(1, 2, 2, 3)
+  margin: auto
+
+  h1, p
+    margin: auto
+
+#bingo-button
+  background-color: $secondary
+  height: 100%
+  width: 50vh
+  border-radius: 25rem
+  margin: auto
+  @include  gridPosition(2, 3, 2, 3)
+
+#bingo-button:hover
+  background-color: mix($secondary, $primary, 75%)

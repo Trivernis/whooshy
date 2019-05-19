@@ -25,7 +25,11 @@ async function init() {
     let graphqlResolver = async (request, response) => {
         return {
             time: Date.now(),
-            bingo: await bingoRouter.graphqlResolver(request, response)
+            bingo: await bingoRouter.graphqlResolver(request, response),
+            acceptCookies: () => {
+                request.session.acceptedCookies = true;
+                return true;
+            }
         };
     };
     // database setup
@@ -65,8 +69,8 @@ async function init() {
     app.use(express.static(path.join(__dirname, 'public')));
 
     app.use('/', indexRouter);
-    app.use('/users', usersRouter);
-    app.use(/\/riddle(\/.*)?/, riddleRouter);
+    //app.use('/users', usersRouter);
+    //app.use(/\/riddle(\/.*)?/, riddleRouter);
     app.use('/bingo', bingoRouter);
     app.use('/graphql', graphqlHTTP(async (request, response) => {
         return await {

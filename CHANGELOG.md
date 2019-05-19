@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - grid size input
 - bingo status bar
 - bingo chat commands
+- cookie info dialog
 
 ## Changed
 
@@ -42,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - sqlite3 sesssion storage
 - old frontend
 - old bingo pug files
+- riddle and users (currently deactivated)
 
 ### Fixed
 

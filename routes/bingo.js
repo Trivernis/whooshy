@@ -1347,8 +1347,7 @@ router.use(async (req, res, next) => {
 
 router.get('/', async (req, res) => {
     let playerId = req.session.bingoPlayerId;
-    // if (!playerId)
-    //     req.session.bingoPlayerId = playerId = (await bdm.addPlayer(shuffleArray(playerNames)[0])).id;
+    let info = req.session.acceptedCookies? null: globals.cookieInfo;
     let lobbyWrapper = new LobbyWrapper(req.query.g);
     if (playerId && req.query.g && await lobbyWrapper.exists()) {
         let lobbyId = req.query.g;
@@ -1365,7 +1364,8 @@ router.get('/', async (req, res) => {
                 adminId: admin.id,
                 words: words,
                 wordString: words.join('\n'),
-                gridSize: await lobbyWrapper.gridSize()
+                gridSize: await lobbyWrapper.gridSize(),
+                info: info
             });
         } else {
             if (await lobbyWrapper.hasPlayer(playerId)) {
@@ -1376,7 +1376,8 @@ router.get('/', async (req, res) => {
                     players: playerData,
                     grid: grid,
                     isAdmin: (playerId === admin.id),
-                    adminId: admin.id
+                    adminId: admin.id,
+                    info: info
                 });
             } else {
                 let playerData = await getPlayerData(lobbyWrapper);
@@ -1388,12 +1389,13 @@ router.get('/', async (req, res) => {
                     adminId: admin.id,
                     words: words,
                     wordString: words.join('\n'),
-                    gridSize: await lobbyWrapper.gridSize()
+                    gridSize: await lobbyWrapper.gridSize(),
+                    info: info
                 });
             }
         }
     } else {
-        res.render('bingo/bingo-create');
+        res.render('bingo/bingo-create', {info: info});
     }
 });
 

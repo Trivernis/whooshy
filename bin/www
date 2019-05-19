@@ -13,12 +13,13 @@ const fsx = require('fs-extra');
 let settings = {};
 
 try {
-  settings = yaml.safeLoad(fsx.readFileSync('default-config.yaml'));
+    settings = yaml.safeLoad(fsx.readFileSync('default-config.yaml'));
 
-  if (fsx.existsSync('config.yaml'))
-    Object.assign(settings, yaml.safeLoad(fsx.readFileSync('config.yaml')));
+    if (fsx.existsSync('config.yaml')) {
+        Object.assign(settings, yaml.safeLoad(fsx.readFileSync('config.yaml')));
+    }
 } catch (err) {
-  console.error(err);
+    console.error(err);
 }
 
 /**
@@ -28,40 +29,44 @@ try {
 let port = normalizePort(process.env.PORT || settings.port || '3000');
 
 appInit().then((app) => {
-  app.set('port', port);
+    app.set('port', port);
 
-  /**
-   * Create HTTP server.
-   */
+    /**
+     * Create HTTP server.
+     */
 
-  let server = http.createServer(app);
+    let server = http.createServer(app);
 
-  /**
-   * Listen on provided port, on all network interfaces.
-   */
+    /**
+     * Listen on provided port, on all network interfaces.
+     */
 
-  server.listen(port);
-  server.on('error', (error) => onError(error));
-  server.on('listening', () => onListening(server));
+    server.listen(port);
+    server.on('error', (error) => onError(error));
+    server.on('listening', () => onListening(server));
 
-  /**
-   * Normalize a port into a number, string, or false.
-   */
+    /**
+     * Normalize a port into a number, string, or false.
+     */
 }).catch((err) => {
-  console.error(err.message);
-  console.error(err.stack);
+    console.error(err.message);
+    console.error(err.stack);
 });
 
 function normalizePort(val) {
-  let port = parseInt(val, 10);
+    let port = parseInt(val, 10);
 
-  if (isNaN(port))
+    if (isNaN(port))
     // named pipe
-    return val;
-  if (port >= 0)
+    {
+        return val;
+    }
+    if (port >= 0)
     // port number
-    return port;
-  return false;
+    {
+        return port;
+    }
+    return false;
 }
 
 /**
@@ -69,26 +74,27 @@ function normalizePort(val) {
  */
 
 function onError(error) {
-  if (error.syscall !== 'listen')
-    throw error;
+    if (error.syscall !== 'listen') {
+        throw error;
+    }
 
-  let bind = typeof port === 'string'
-    ? 'Pipe ' + port
-    : 'Port ' + port;
+    let bind = typeof port === 'string'
+        ? 'Pipe ' + port
+        : 'Port ' + port;
 
-  // handle specific listen errors with friendly messages
-  switch (error.code) {
-    case 'EACCES':
-      console.error(bind + ' requires elevated privileges');
-      process.exit(1);
-      break;
-    case 'EADDRINUSE':
-      console.error(bind + ' is already in use');
-      process.exit(1);
-      break;
-    default:
-      throw error;
-  }
+    // handle specific listen errors with friendly messages
+    switch (error.code) {
+        case 'EACCES':
+            console.error(bind + ' requires elevated privileges');
+            process.exit(1);
+            break;
+        case 'EADDRINUSE':
+            console.error(bind + ' is already in use');
+            process.exit(1);
+            break;
+        default:
+            throw error;
+    }
 }
 
 /**
@@ -96,9 +102,9 @@ function onError(error) {
  */
 
 function onListening(server) {
-  let addr = server.address();
-  let bind = typeof addr === 'string'
-    ? 'pipe ' + addr
-    : 'port ' + addr.port;
-  debug('Listening on ' + bind);
+    let addr = server.address();
+    let bind = typeof addr === 'string'
+        ? 'pipe ' + addr
+        : 'port ' + addr.port;
+    debug('Listening on ' + bind);
 }

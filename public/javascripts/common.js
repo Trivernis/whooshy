@@ -127,3 +127,11 @@ async function indicateStatus(func, indicatorSelector) {
         statusIndicator.setAttribute('status', 'error');
     }
 }
+
+async function acceptCookies() {
+    await postGraphqlQuery(`
+    mutation {
+        acceptCookies
+    }`);
+    document.querySelector('#cookie-container').remove();
+}
