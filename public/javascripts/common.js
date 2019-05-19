@@ -128,10 +128,36 @@ async function indicateStatus(func, indicatorSelector) {
     }
 }
 
+/**
+ * posts to accept cookies.
+ * @returns {Promise<void>}
+ */
 async function acceptCookies() {
     await postGraphqlQuery(`
     mutation {
         acceptCookies
     }`);
     document.querySelector('#cookie-container').remove();
+}
+
+/**
+ * Gets the names for the windows hidden and visibility change events and properties
+ * @returns {{hidden: string, visibilityChange: string}}
+ */
+function getHiddenNames() {
+    let hidden, visibilityChange;
+    if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support
+        hidden = "hidden";
+        visibilityChange = "visibilitychange";
+    } else if (typeof document.msHidden !== "undefined") {
+        hidden = "msHidden";
+        visibilityChange = "msvisibilitychange";
+    } else if (typeof document.webkitHidden !== "undefined") {
+        hidden = "webkitHidden";
+        visibilityChange = "webkitvisibilitychange";
+    }
+    return {
+        hidden: hidden,
+        visibilityChange: visibilityChange
+    };
 }

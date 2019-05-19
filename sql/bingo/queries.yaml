@@ -218,6 +218,12 @@ getGridInfo:
 addWordToGrid:
   sql: INSERT INTO bingo.grid_words (grid_id, word_id, grid_row, grid_column) VALUES ($1, $2, $3, $4) RETURNING *;
 
+# inserts grid-word connections into the database
+# params:
+# ! need to be set in the sql
+addWordToGridStrip:
+  sql: INSERT INTO bingo.grid_words (grid_id, word_id, grid_row, grid_column) VALUES
+
 # sets a bingo field to submitted = not submitted
 # params:
 # - {Number} - the id of the grid

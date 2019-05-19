@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS bingo.rounds (
     id serial UNIQUE PRIMARY KEY,
     start timestamp DEFAULT NOW(),
     finish timestamp,
-    status varchar(8) DEFAULT 'ACTIVE',
+    status varchar(8) DEFAULT 'BUILDING',
     lobby_id serial references bingo.lobbys(id) ON DELETE CASCADE,
     winner integer
 );

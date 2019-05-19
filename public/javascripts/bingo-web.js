@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars, no-undef */
+
 /**
  * Returns the value of the url-param 'g'
  * @returns {string}
@@ -9,7 +10,6 @@ function getLobbyParam() {
         return matches[1];
     else
         return '';
-
 }
 
 /**
@@ -22,6 +22,21 @@ function getRoundParam() {
         return matches[1];
     else
         return '';
+}
+
+/**
+ * Spawns a notification when the window is inactive (hidden).
+ * @param body
+ * @param title
+ */
+function spawnNotification(body, title) {
+    if (Notification.permission !== 'denied' && document[getHiddenNames().hidden]) {
+        let options = {
+            body: body,
+            icon: '/favicon.ico'
+        };
+        let n = new Notification(title, options);
+    }
 }
 
 /**
@@ -46,7 +61,9 @@ async function submitUsername() {
  * @returns {Promise<boolean>}
  */
 async function setUsername(username) {
-    let response = await postGraphqlQuery(`
+    let uname = username.substring(0, 30).replace(/[^\w- ;[\]]/g, '');
+    if (uname.length === username.length) {
+        let response = await postGraphqlQuery(`
         mutation($username:String!) {
           bingo {
             setUsername(username: $username) {
@@ -54,13 +71,19 @@ async function setUsername(username) {
               username
             }
           }
-        }`, {username: username});
-    if (response.status === 200) {
-        return true;
+        }`, {username: username}, '/graphql?g='+getLobbyParam());
+        if (response.status === 200) {
+            return response.data.bingo.setUsername.username;
+        } else {
+            if (response.errors)
+                showError(response.errors[0].message);
+            else
+                showError(`Failed to submit username.`);
+            console.error(response);
+            return false;
+        }
     } else {
-        showError(`Failed to submit username. Error: ${response.errors.join(', ')}`);
-        console.error(response);
-        return false;
+        showError('Your username contains illegal characters.');
     }
 }
 
@@ -79,11 +102,16 @@ async function ping() {
 }
 
 /**
- * TODO: real join logic
+ * Joins a lobby or says to create one if none is found
+ * @returns {Promise<void>}
  */
 async function joinLobby() {
-    await submitUsername();
-    window.location.reload();
+    if (getLobbyParam()) {
+        if (await submitUsername())
+            window.location.reload();
+    } else {
+        showError('No lobby found. Please create one.');
+    }
 }
 
 /**
@@ -91,22 +119,24 @@ async function joinLobby() {
  * @returns {Promise<boolean>}
  */
 async function createLobby() {
-    let response = await postGraphqlQuery(`
-    mutation {
-      bingo {
-        createLobby {
-          id
+    if (await submitUsername()) {
+        let response = await postGraphqlQuery(`
+        mutation {
+          bingo {
+            createLobby {
+              id
+            }
+          }
         }
-      }
-    }
-    `);
-    if (response.status === 200 && response.data.bingo.createLobby) {
-        insertParam('g', response.data.bingo.createLobby.id);
-        return true;
-    } else {
-        showError('Failed to create Lobby. HTTP ERROR: ' + response.status);
-        console.error(response);
-        return false;
+        `);
+        if (response.status === 200 && response.data.bingo.createLobby) {
+            insertParam('g', response.data.bingo.createLobby.id);
+            return true;
+        } else {
+            showError('Failed to create Lobby. HTTP ERROR: ' + response.status);
+            console.error(response);
+            return false;
+        }
     }
 }
 
@@ -197,8 +227,8 @@ async function executeCommand(message) {
                 break;
             case '/username':
                 if (command[2]) {
-                    await setUsername(command[2]);
-                    reply(`Your username is <b>${command[2]}</b> now.`)
+                    let uname = await setUsername(command[2]);
+                    reply(`Your username is <b>${uname}</b> now.`);
                 } else {
                     reply('You need to provide a username');
                 }
@@ -278,7 +308,10 @@ async function setLobbySettings(words, gridSize) {
         return response.data.bingo.mutateLobby.setWords.words;
     } else {
         console.error(response);
-        showError('Error when setting lobby words.');
+        if (response.errors)
+            showError(response.errors[0].message);
+        else
+            showError('Error when submitting lobby settings.');
     }
 }
 
@@ -289,25 +322,31 @@ async function setLobbySettings(words, gridSize) {
 async function startRound() {
     let textinput = document.querySelector('#input-bingo-words');
     let words = getLobbyWords();
-    let gridSize = document.querySelector('#input-grid-size').value || 3;
-    let resultWords = await setLobbySettings(words, gridSize);
-    textinput.value = resultWords.map(x => x.content).join('\n');
-    let response = await postGraphqlQuery(`
-    mutation($lobbyId:ID!){
-      bingo {
-        mutateLobby(id:$lobbyId) {
-          startRound {
-            id
-          }
-        }
-      }
-    }`, {lobbyId: getLobbyParam()});
+    if (words.length > 0) {
+        let gridSize = document.querySelector('#input-grid-size').value || 3;
+        let resultWords = await setLobbySettings(words, gridSize);
+        if (resultWords) {
+            textinput.value = resultWords.map(x => x.content).join('\n');
+            let response = await postGraphqlQuery(`
+            mutation($lobbyId:ID!){
+              bingo {
+                mutateLobby(id:$lobbyId) {
+                  startRound {
+                    id
+                  }
+                }
+              }
+            }`, {lobbyId: getLobbyParam()});
 
-    if (response.status === 200) {
-        insertParam('r', response.data.bingo.mutateLobby.startRound.id);
+            if (response.status === 200) {
+                insertParam('r', response.data.bingo.mutateLobby.startRound.id);
+            } else {
+                console.error(response);
+                showError('Error when starting round.');
+            }
+        }
     } else {
-        console.error(response);
-        showError('Error when starting round.');
+        throw new Error('No words provided.');
     }
 }
 
@@ -429,11 +468,9 @@ function displayWinner(roundInfo) {
         <button id="button-lobbyreturn" onclick="window.location.reload()">Return to Lobby!</button>
     `;
     greyoverDiv.setAttribute('class', 'greyover');
-    //winnerDiv.onclick = () => {
-    //    window.location.reload();
-    //};
     document.body.append(greyoverDiv);
     document.body.appendChild(winnerDiv);
+    spawnNotification(`${name} has won!`, 'Bingo');
 }
 
 /**
@@ -471,7 +508,7 @@ async function statusWrap(func) {
 
 /**
  * Loads information about the rounds winner and the round stats.
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>}
  */
 async function loadWinnerInfo() {
     let response = await postGraphqlQuery(`
@@ -505,8 +542,9 @@ async function loadWinnerInfo() {
 /**
  * Adds a message to the chat
  * @param messageObject {Object} - the message object returned by graphql
+ * @param player {Number} - the id of the player
  */
-function addChatMessage(messageObject) {
+function addChatMessage(messageObject, player) {
     let msgSpan = document.createElement('span');
     msgSpan.setAttribute('class', 'chatMessage');
     msgSpan.setAttribute('msg-type', messageObject.type);
@@ -520,6 +558,8 @@ function addChatMessage(messageObject) {
         <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
     }
 
+    if (messageObject.author && messageObject.author.id !== player)
+        spawnNotification(messageObject.content, messageObject.author.username);
     let chatContent = document.querySelector('#chat-content');
     chatContent.appendChild(msgSpan);
     chatContent.scrollTop = chatContent.scrollHeight;       // auto-scroll to bottom
@@ -552,12 +592,17 @@ async function refreshChat() {
         let response = await postGraphqlQuery(`
         query($lobbyId:ID!){
           bingo {
+            player {
+                id
+            }
             lobby(id:$lobbyId) {
               messages {
                 id
                 type
                 htmlContent
+                content
                 author {
+                  id
                   username
                 }
               }
@@ -568,7 +613,7 @@ async function refreshChat() {
             let messages = response.data.bingo.lobby.messages;
             for (let message of messages)
                 if (!document.querySelector(`.chatMessage[msg-id="${message.id}"]`))
-                    addChatMessage(message);
+                    addChatMessage(message, response.data.bingo.player.id);
         } else {
             showError('Failed to refresh messages');
             console.error(response);
@@ -678,6 +723,7 @@ async function refreshLobby() {
               }
               currentRound {
                 id
+                status
               }
               words {
                 content
@@ -695,8 +741,10 @@ async function refreshLobby() {
                 wordContainer.innerHTML = `<span class="bingoWord">
                 ${response.data.bingo.lobby.words.map(x => x.content).join('</span><span class="bingoWord">')}</span>`;
 
-            if (currentRound && currentRound.id && Number(currentRound.id) !== Number(getRoundParam()))
+            if (currentRound && currentRound.status === 'ACTIVE' && Number(currentRound.id) !== Number(getRoundParam())) {
                 insertParam('r', currentRound.id);
+                spawnNotification('The round started!', 'Bingo');
+            }
 
         } else {
             showError('Failed to refresh lobby');
@@ -771,3 +819,14 @@ window.addEventListener("keydown", async (e) => {
         }
     }
 }, false);
+
+window.onload = async () => {
+    if ("Notification" in window)
+        if (Notification.permission !== 'denied') {
+            try {
+                await Notification.requestPermission();
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+};

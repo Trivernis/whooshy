@@ -17,6 +17,7 @@ const createError = require('http-errors'),
     indexRouter = require('./routes/index'),
     usersRouter = require('./routes/users'),
     riddleRouter = require('./routes/riddle'),
+    changelogRouter = require('./routes/changelog'),
     bingoRouter = require('./routes/bingo');
 
 
@@ -72,6 +73,7 @@ async function init() {
     //app.use('/users', usersRouter);
     //app.use(/\/riddle(\/.*)?/, riddleRouter);
     app.use('/bingo', bingoRouter);
+    app.use('/changelog', changelogRouter);
     app.use('/graphql', graphqlHTTP(async (request, response) => {
         return await {
             schema: buildSchema(importSchema('./graphql/schema.graphql')),

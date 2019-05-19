@@ -12,7 +12,6 @@ const express = require('express'),
     globals = require('../lib/globals');
 
 let pgPool = globals.pgPool;
-let playerNames = utils.getFileLines('./misc/usernames.txt').filter(x => (x && x.length > 0));
 
 /**
  * Class to manage the bingo data in the database.
@@ -331,6 +330,25 @@ class BingoDataManager {
      */
     async addWordToGrid(gridId, wordId, row, column) {
         return await this._queryFirstResult(this.queries.addWordToGrid.sql, [gridId, wordId, row, column]);
+    }
+
+    /**
+     * Adds words to the grid
+     * @param gridId {Number} - the id of the grid
+     * @param words {Array<{wordId: Number, row: Number, column:Number}>}
+     * @returns {Promise<void>}
+     */
+    async addWordsToGrid(gridId, words) {
+        let valueSql = buildSqlParameters(4, words.length, 0);
+        let values = [];
+        for (let word of words) {
+            values.push(gridId);
+            values.push(word.wordId);
+            values.push(word.row);
+            values.push(word.column);
+        }
+        return await this._queryFirstResult(
+            this.queries.addWordToGridStrip.sql + valueSql + ' RETURNING *', values);
     }
 
     /**
@@ -708,6 +726,22 @@ class PlayerWrapper {
     }
 
     /**
+     * Returns if the user has a valid grid.
+     * @param lobbyId
+     * @returns {Promise<boolean>}
+     */
+    async hasGrid(lobbyId) {
+        let grid = await this.grid({lobbyId: lobbyId});
+        if (grid) {
+            let fields = await grid.fields();
+            let lobbyWrapper = new LobbyWrapper(lobbyId);
+            return fields.length === (await lobbyWrapper.gridSize()) ** 2;
+        } else {
+            return false;
+        }
+    }
+
+    /**
      * Returns the username of the player
      * @returns {Promise<String|null>}
      */
@@ -1006,10 +1040,11 @@ class LobbyWrapper {
             let gridId = (await bdm.addGrid(this.id, player.id, currentRound)).id;
             let gridContent = generateWordGrid(this.grid_size, words);
 
+            let gridWords = [];
             for (let i = 0; i < gridContent.length; i++)
                 for (let j = 0; j < gridContent[i].length; j++)
-                    // eslint-disable-next-line no-await-in-loop
-                    await bdm.addWordToGrid(gridId, gridContent[i][j].id, i, j);
+                    gridWords.push({wordId: gridContent[i][j].id, row: i, column: j});
+            await bdm.addWordsToGrid(gridId, gridWords);
         }
     }
 
@@ -1025,6 +1060,7 @@ class LobbyWrapper {
                 await currentRound.setFinished();
             await this._createRound();
             await this._createGrids();
+            await this.setRoundStatus('ACTIVE');
         }
     }
 
@@ -1073,6 +1109,7 @@ class LobbyWrapper {
      */
     async setWords(words) {
         if (words.length > 0 && !await this.roundActive()) {
+            words = words.map(x => x.substring(0, 200));
             let {newWords, removedWords} = await this._filterWords(words);
             for (let word of newWords)
                 await this.addWord(word);
@@ -1156,6 +1193,23 @@ class LobbyWrapper {
     }
 }
 
+/**
+ * Returns the parameterized value sql for inserting.
+ * @param columnCount
+ * @param rowCount
+ * @param [offset]
+ * @returns {string}
+ */
+function buildSqlParameters(columnCount, rowCount, offset) {
+    let sql = '';
+    for (let i = 0; i < rowCount; i++) {
+        sql += '(';
+        for (let j = 0; j < columnCount; j++)
+            sql += `$${(i*columnCount)+j+1+offset},`;
+        sql = sql.replace(/,$/, '') + '),';
+    }
+    return sql.replace(/,$/, '');
+}
 
 /**
  * Replaces tag signs with html-escaped signs.
@@ -1341,6 +1395,20 @@ async function getGridData(lobbyId, playerId) {
     return {fields: fieldGrid, bingo: await grid.bingo()};
 }
 
+/**
+ * Returns resolved message data.
+ * @param lobbyId
+ * @returns {Promise<Array>}
+ */
+async function getMessageData(lobbyId) {
+    let lobbyWrapper = new LobbyWrapper(lobbyId);
+    let messages = await lobbyWrapper.messages({limit: 20});
+    let msgReturn = [];
+    for (let message of messages)
+        msgReturn.push(Object.assign(message, {username: await message.author.username()}));
+    return msgReturn;
+}
+
 // -- Router stuff
 
 
@@ -1361,10 +1429,11 @@ router.get('/', async (req, res) => {
     let info = req.session.acceptedCookies? null: globals.cookieInfo;
     let lobbyWrapper = new LobbyWrapper(req.query.g);
     let playerWrapper = new PlayerWrapper(playerId);
+
     if (playerId && await playerWrapper.exists() && req.query.g && await lobbyWrapper.exists()) {
         let lobbyId = req.query.g;
 
-        if (!(await lobbyWrapper.roundActive())) {
+        if (!(await lobbyWrapper.roundActive() && await playerWrapper.hasGrid(lobbyId))) {
             if (!await lobbyWrapper.hasPlayer(playerId))
                 await lobbyWrapper.addPlayer(playerId);
             let playerData = await getPlayerData(lobbyWrapper);
@@ -1377,10 +1446,11 @@ router.get('/', async (req, res) => {
                 words: words,
                 wordString: words.join('\n'),
                 gridSize: await lobbyWrapper.gridSize(),
-                info: info
+                info: info,
+                messages: await getMessageData(lobbyId)
             });
         } else {
-            if (await lobbyWrapper.hasPlayer(playerId)) {
+            if (await lobbyWrapper.hasPlayer(playerId) && await playerWrapper.hasGrid(lobbyId)) {
                 let playerData = await getPlayerData(lobbyWrapper);
                 let grid = await getGridData(lobbyId, playerId);
                 let admin = await lobbyWrapper.admin();
@@ -1389,21 +1459,11 @@ router.get('/', async (req, res) => {
                     grid: grid,
                     isAdmin: (playerId === admin.id),
                     adminId: admin.id,
-                    info: info
+                    info: info,
+                    messages: await getMessageData(lobbyId)
                 });
             } else {
-                let playerData = await getPlayerData(lobbyWrapper);
-                let admin = await lobbyWrapper.admin();
-                let words = await getWordsData(lobbyWrapper);
-                res.render('bingo/bingo-lobby', {
-                    players: playerData,
-                    isAdmin: (playerId === admin.id),
-                    adminId: admin.id,
-                    words: words,
-                    wordString: words.join('\n'),
-                    gridSize: await lobbyWrapper.gridSize(),
-                    info: info
-                });
+                res.redirect('/bingo');
             }
         }
     } else {
@@ -1436,16 +1496,24 @@ router.graphqlResolver = async (req, res) => {
         },
         // mutations
         setUsername: async ({username}) => {
-            username = replaceTagSigns(username.substring(0, 30)); // only allow 30 characters
-            let playerWrapper = new PlayerWrapper(playerId);
+            username = replaceTagSigns(username.substring(0, 30)).replace(/[^\w- ;[\]]/g, ''); // only allow 30 characters
+            if (username.length > 0) {
+                let playerWrapper = new PlayerWrapper(playerId);
 
-            if (!playerId || !(await playerWrapper.exists())) {
-                req.session.bingoPlayerId = (await bdm.addPlayer(username)).id;
-                playerId = req.session.bingoPlayerId;
+                if (!playerId || !(await playerWrapper.exists())) {
+                    req.session.bingoPlayerId = (await bdm.addPlayer(username)).id;
+                    playerId = req.session.bingoPlayerId;
+                } else {
+                    let oldName = await playerWrapper.username();
+                    await bdm.updatePlayerUsername(playerId, username);
+                    if (req.query.g)
+                        await bdm.addInfoMessage(req.query.g, `${oldName} changed username to ${username}`);
+                }
+                return new PlayerWrapper(playerId);
             } else {
-                await bdm.updatePlayerUsername(playerId, username);
+                res.status(400);
+                return new GraphQLError('Username too short!');
             }
-            return new PlayerWrapper(playerId);
         },
         createLobby: async({gridSize}) => {
             if (playerId)
@@ -1508,13 +1576,18 @@ router.graphqlResolver = async (req, res) => {
                     }
                 },
                 setGridSize: async ({gridSize}) => {
-                    let admin = await lobbyWrapper.admin();
-                    if (admin.id === playerId) {
-                        await lobbyWrapper.setGridSize(gridSize);
-                        return lobbyWrapper;
+                    if (gridSize > 0 && gridSize < 6) {
+                        let admin = await lobbyWrapper.admin();
+                        if (admin.id === playerId) {
+                            await lobbyWrapper.setGridSize(gridSize);
+                            return lobbyWrapper;
+                        } else {
+                            res.status(403);
+                            return new GraphQLError('You are not an admin');
+                        }
                     } else {
-                        res.status(403);
-                        return new GraphQLError('You are not an admin');
+                        res.status(400);
+                        return new GraphQLError('Grid size too big!');
                     }
                 },
                 setWords: async({words}) => {

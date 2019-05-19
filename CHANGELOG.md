@@ -29,14 +29,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bingo status bar
 - bingo chat commands
 - cookie info dialog
+- chat and round notifications
 
-## Changed
+### Changed
 
 - changed export of `app.js` to the asynchronous init function that returns the app object
 - `bin/www` now calls the init function of `app.js`
 - graphql bingo api
 - bingo frontend
 - moved some bingo pug files to ./bingo/includes/
+- style of `code`
+- font to Ubuntu and Ubuntu Monospace
+- grid size limit to 5
+- improved sql grid word insertion query
 
 ### Removed
 
@@ -54,3 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - backend now returns precise error messages
 - setting words won't result in deleting all of them and resaving
 - words can now only be set when no round is active
+- username allowing emojis
+- username can have a length of 0 (now at least 1 character)
+- mozilla didn't have a fancy scrollbar (no webkit browser)
+- kicked users can join lobby on active round
+- users can't join lobby on active round
+- server crash on too big phrases

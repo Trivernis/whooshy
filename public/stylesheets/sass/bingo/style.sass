@@ -44,9 +44,11 @@
   border-radius: 0
   color: $primarySurface
   border: 1px solid $inactive
+  position: relative
 
   .playerWins
-    margin-left: 1em
+    position: absolute
+    right: 0
 
   .kickPlayerButton
     color: $inactive
@@ -183,13 +185,18 @@
 
 #statusbar
   display: grid
-  grid-template: 100% / 1rem calc(80% - 1rem) 20%
+  grid-template: 100% 0 / 1rem calc(75% - 1rem) 25%
   background-color: darken($primary, 5%)
   margin: 0.5rem 0 0 0
   padding: 0.25rem
   vertical-align: middle
   font-size: 0.8em
   text-align: start
+  position: absolute
+  height: 1rem
+  bottom: 0
+  left: 0
+  width: calc(100% - 0.5rem)
 
   #status-indicator
     height: 1rem
@@ -204,6 +211,8 @@
     color: $errorText
 
   #container-info
+    @include gridPosition(1, 2, 3, 4)
+    text-align: left
     width: 100%
     height: 100%
     margin: auto
@@ -237,9 +246,6 @@
     button
       width: 100%
 
-  #statusbar
-    @include gridPosition(5, 6, 1, 4)
-
 #container-bingo-lobby
   @include fillWindow
   overflow: hidden
@@ -264,9 +270,6 @@
     @include gridPosition(3, 4, 4, 5)
     background-color: lighten($primary, 5%)
 
-  #statusbar
-    @include gridPosition(4, 5, 1, 6)
-
 #container-bingo-round
   @include fillWindow
   overflow: hidden
@@ -287,6 +290,3 @@
 
   #container-bingo-button
     @include gridPosition(1, 2, 1, 2)
-
-  #statusbar
-    @include gridPosition(4, 5, 1, 3)
