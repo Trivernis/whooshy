@@ -15,8 +15,8 @@ const createError = require('http-errors'),
     settings = globals.settings,
 
     indexRouter = require('./routes/index'),
-    usersRouter = require('./routes/users'),
-    riddleRouter = require('./routes/riddle'),
+    //usersRouter = require('./routes/users'),
+    //riddleRouter = require('./routes/riddle'),
     changelogRouter = require('./routes/changelog'),
     bingoRouter = require('./routes/bingo');
 

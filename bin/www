@@ -15,9 +15,8 @@ let settings = {};
 try {
     settings = yaml.safeLoad(fsx.readFileSync('default-config.yaml'));
 
-    if (fsx.existsSync('config.yaml')) {
+    if (fsx.existsSync('config.yaml'))
         Object.assign(settings, yaml.safeLoad(fsx.readFileSync('config.yaml')));
-    }
 } catch (err) {
     console.error(err);
 }
@@ -58,14 +57,12 @@ function normalizePort(val) {
 
     if (isNaN(port))
     // named pipe
-    {
         return val;
-    }
+
     if (port >= 0)
     // port number
-    {
         return port;
-    }
+
     return false;
 }
 
@@ -74,9 +71,8 @@ function normalizePort(val) {
  */
 
 function onError(error) {
-    if (error.syscall !== 'listen') {
+    if (error.syscall !== 'listen')
         throw error;
-    }
 
     let bind = typeof port === 'string'
         ? 'Pipe ' + port

@@ -356,10 +356,9 @@ async function startRound() {
  */
 function getLobbyWords() {
     let textinput = document.querySelector('#input-bingo-words');
-    let words = textinput.value.replace(/[<>]/g, '').split('\n').filter((el) => {
+    return textinput.value.replace(/[<>]/g, '').split('\n').filter((el) => {
         return (!!el && el.length > 0);     // remove empty strings and non-types from word array
     });
-    return words;
 }
 
 /**
@@ -549,14 +548,13 @@ function addChatMessage(messageObject, player) {
     msgSpan.setAttribute('class', 'chatMessage');
     msgSpan.setAttribute('msg-type', messageObject.type);
     msgSpan.setAttribute('msg-id', messageObject.id);
-    if (messageObject.type === "USER") {
+    if (messageObject.type === "USER")
         msgSpan.innerHTML = `
         <span class="chatUsername">${messageObject.author.username}:</span>
         <span class="chatMessageContent">${messageObject.htmlContent}</span>`;
-    } else {
+     else
         msgSpan.innerHTML = `
         <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
-    }
 
     if (messageObject.author && messageObject.author.id !== player)
         spawnNotification(messageObject.content, messageObject.author.username);
@@ -567,7 +565,8 @@ function addChatMessage(messageObject, player) {
 
 /**
  * Adds a player to the player view
- * @param player
+ * @param player {Object} - player as returned by graphql
+ * @param options {Object} - meta information
  */
 function addPlayer(player, options) {
     let playerContainer = document.createElement('div');
