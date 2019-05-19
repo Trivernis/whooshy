@@ -670,7 +670,7 @@ class PlayerWrapper {
 
     /**
      * Loads all player information
-     * @returns {Promise<void>}
+     * @returns {Promise<Boolean>}
      * @private
      */
     async _loadPlayerInfo() {
@@ -680,8 +680,19 @@ class PlayerWrapper {
                 this._uname = result.username;
                 this.expire = result.expire;
                 this._infoLoaded = true;
+                return true;
+            } else {
+                return false;
             }
         }
+    }
+
+    /**
+     * Returns if the player exists
+     * @returns {Promise<Boolean>}
+     */
+    async exists() {
+        return await this._loadPlayerInfo();
     }
 
     /**
@@ -1317,7 +1328,7 @@ async function getGridData(lobbyId, playerId) {
     for (let i = 0; i < await lobbyWrapper.gridSize(); i++) {
         fieldGrid[i] = [];
         for (let j = 0; j < await lobbyWrapper.gridSize(); j++) {
-            let field = fields.find(x => (x.row === i && x.column === j))
+            let field = fields.find(x => (x.row === i && x.column === j));
             fieldGrid[i][j] = {
                 row: field.row,
                 column: field.column,
@@ -1349,7 +1360,8 @@ router.get('/', async (req, res) => {
     let playerId = req.session.bingoPlayerId;
     let info = req.session.acceptedCookies? null: globals.cookieInfo;
     let lobbyWrapper = new LobbyWrapper(req.query.g);
-    if (playerId && req.query.g && await lobbyWrapper.exists()) {
+    let playerWrapper = new PlayerWrapper(playerId);
+    if (playerId && await playerWrapper.exists() && req.query.g && await lobbyWrapper.exists()) {
         let lobbyId = req.query.g;
 
         if (!(await lobbyWrapper.roundActive())) {
@@ -1395,7 +1407,10 @@ router.get('/', async (req, res) => {
             }
         }
     } else {
-        res.render('bingo/bingo-create', {info: info});
+        res.render('bingo/bingo-create', {
+            info: info,
+            username: await playerWrapper.username()
+        });
     }
 });
 
@@ -1422,8 +1437,9 @@ router.graphqlResolver = async (req, res) => {
         // mutations
         setUsername: async ({username}) => {
             username = replaceTagSigns(username.substring(0, 30)); // only allow 30 characters
+            let playerWrapper = new PlayerWrapper(playerId);
 
-            if (!playerId) {
+            if (!playerId || !(await playerWrapper.exists())) {
                 req.session.bingoPlayerId = (await bdm.addPlayer(username)).id;
                 playerId = req.session.bingoPlayerId;
             } else {

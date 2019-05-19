@@ -30,7 +30,8 @@
   "devDependencies": {
     "eslint": "^5.16.0",
     "eslint-plugin-graphql": "^3.0.3",
-    "eslint-plugin-promise": "^4.1.1"
+    "eslint-plugin-promise": "^4.1.1",
+    "standard": "^12.0.1"
   },
   "eslintConfig": {
     "parserOptions": {

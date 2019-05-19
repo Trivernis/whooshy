@@ -6,6 +6,7 @@ block content
             input(id='input-username'
                 type='text'
                 placeholder='Enter your name'
+                value=username
                 onkeydown='submitOnEnter(event, () => indicateStatus(submitUsername, "#username-status"))')
             button(
                 id='submit-username'
@@ -14,3 +15,4 @@ block content
         div(id='lobby-form')
             button(id='join-lobby' onclick='joinLobby()') Join Lobby
             button(id='create-lobby' onclick='createLobby()') Create Lobby
+        include includes/bingo-statusbar

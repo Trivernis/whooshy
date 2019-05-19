@@ -33,7 +33,7 @@ async function submitUsername() {
     let username = unameInput.value.replace(/^\s+|\s+$/g, '');
 
     if (username.length > 1) {
-        await setUsername(username);
+        return await setUsername(username);
     } else {
         showError('You need to provide a username (minimum 2 characters)!');
         return false;
@@ -58,7 +58,7 @@ async function setUsername(username) {
     if (response.status === 200) {
         return true;
     } else {
-        showError(`Failed to submit username. HTTP Error: ${response.status}`);
+        showError(`Failed to submit username. Error: ${response.errors.join(', ')}`);
         console.error(response);
         return false;
     }
