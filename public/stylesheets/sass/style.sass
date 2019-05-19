@@ -1,0 +1,99 @@
+@import vars
+@import classes
+@import mixins
+
+@media (min-device-width: 320px)
+  html
+    font-size: 4vw
+
+@media (min-device-width: 481px)
+  html
+    font-size: 4vw
+
+@media (min-device-width: 641px)
+  html
+    font-size: 2.5vw
+
+@media (min-device-width: 961px)
+  html
+    font-size: 2.2vw
+
+@media (min-device-width: 1025px)
+  html
+    font-size: 2vw
+
+@media (min-device-width: 1281px)
+  html
+    font-size: 1.5vw
+
+body
+  background-color: $primary
+  color: $primarySurface
+  font-family: $fontRegular
+  scrollbar-color: $secondary lighten($primary, 5)
+
+button
+  @include default-element
+  font-size: 1.2rem
+  padding: 0.7rem
+  transition-duration: 0.2s
+  background-color: $secondary
+
+button:hover
+  background-color: darken($secondary, 2%)
+  cursor: pointer
+
+button:active
+  background-color: lighten($secondary, 15%)
+
+input
+  background-color: lighten($primary, 10%)
+  color: $primarySurface
+  border: 1px solid $inactive
+  transition-duration: 0.2s
+  font-size: 1.2rem
+  padding: 0.7rem
+  font-family: $fontRegular
+
+input:focus
+  background-color: lighten($primary, 15%)
+  border: 1px solid $primarySurface
+
+input[type='number']
+  text-align: center
+
+textarea
+  background-color: lighten($primary, 15%)
+  color: $primarySurface
+  resize: none
+  font-family: $fontRegular
+
+a
+  color: mix($secondary, $primarySurface, 75%)
+
+mark
+  background-color: $secondary
+  color: $primarySurface
+
+mark > a
+  color: white
+
+code
+  background-color: transparentize(darken($primary, 10%), 0.5)
+  border-radius: 0.25em
+  font-family: $fontCode
+  padding: 0 0.25em
+
+::-webkit-scrollbar
+  width: 12px
+  height: 12px
+
+::-webkit-scrollbar-thumb
+  background: darken($secondary, 5)
+  transition-duration: 0.2s
+
+::-webkit-scrollbar-thumb:hover
+  background: $secondary
+
+::-webkit-scrollbar-track
+  background: lighten($primary, 5)

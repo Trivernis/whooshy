@@ -1,0 +1,219 @@
+type BingoMutation {
+
+    "creates a lobby for a game and returns the lobby"
+    createLobby(gridSize: Int = 3): BingoLobby
+
+    "lobby mutations"
+    mutateLobby(id: ID!): LobbyMutation
+
+    "sets the username of a player"
+    setUsername(username: String): BingoPlayer
+}
+
+type LobbyMutation {
+
+    "joins the lobby"
+    join: BingoLobby
+
+    "leaves the lobby"
+    leave: Boolean
+
+    "kicks a player from the lobby"
+    kickPlayer(pid: ID!): BingoPlayer
+
+    "starts a round in a lobby if the user is the admin"
+    startRound: BingoRound
+
+    "sets the round status"
+    setRoundStatus(status: RoundStatus): BingoRound
+
+    "sets the new gridsize for the lobby"
+    setGridSize(gridSize: Int!): BingoLobby
+
+    "sets the words of a lobby"
+    setWords(words: [String]): BingoLobby
+
+    "sends a message to the lobby"
+    sendMessage(message: String): ChatMessage
+
+    "submits bingo"
+    submitBingo: BingoRound
+
+    "submits a click on a word and returns the field"
+    toggleGridField(location: GridCoordinates!): GridField
+}
+
+type BingoQuery {
+
+    "returns information about a lobby with a specific id"
+    lobby(id: ID!): BingoLobby
+
+    "returns information about a player (if no id is set, its the sessions player)"
+    player(id: ID): BingoPlayer
+}
+
+type BingoLobby {
+
+    "the id of the lobby"
+    id: ID!
+
+    "the grid size of the lobby"
+    gridSize: Int!
+
+    "all players in the lobby"
+    players: [BingoPlayer]
+
+    "the admin of the lobby"
+    admin: BingoPlayer
+
+    "the active bingo round"
+    currentRound: BingoRound
+
+    "all rounds the game had"
+    rounds: [BingoRound]
+
+    "the messages send in the lobby"
+    messages(limit: Int): [ChatMessage!]
+
+    "the words used in the lobby"
+    words: [BingoWord]
+}
+
+type BingoPlayer {
+
+    "the id of the player"
+    id: ID!
+
+    "the username of the player"
+    username: String
+
+    "the grid of the player with the given lobby-id"
+    grid(lobbyId: ID!): BingoGrid
+
+    "the number of wins the user had in the lobby"
+    wins(lobbyId: ID!): Int
+}
+
+type BingoRound {
+    "the id of the bingo round"
+    id: ID!
+
+    "the winner of the round (if exists)"
+    winner: BingoPlayer
+
+    "start time of the round"
+    start: String!
+
+    "finish time of the round"
+    finish: String
+
+    "the status of the bingo round"
+    status: RoundStatus
+
+    "the lobby of the bingo round"
+    lobby: BingoLobby
+}
+
+type BingoGrid {
+
+    "the id of the grid"
+    id: ID!
+
+    "the grid represented as bingo field matrix"
+    fields: [GridField]!
+
+    "if there is a bingo"
+    bingo: Boolean
+
+    "the size of the grid"
+    size: Int
+}
+
+type GridField {
+
+    "the word contained in the bingo field"
+    word: BingoWord
+
+    "if the word was already heared"
+    submitted: Boolean!
+
+    "the row of the field"
+    row: Int!
+
+    "the column of the field"
+    column: Int!
+
+    "the grid the field belongs to"
+    grid: BingoGrid
+}
+
+type BingoWord {
+
+    "the id of the word"
+    id: ID!
+
+    "the word itself"
+    content: String!
+
+    "the number of players that heared this word"
+    heared: Int!
+
+    "the lobby where the word is used"
+    lobby: BingoLobby
+
+    "if the word was actually heared"
+    confirmed: Boolean
+}
+
+type ChatMessage {
+
+    "the id of the message"
+    id: ID!
+
+    "the content of the message"
+    content: String!
+
+    "the content rendered by markdown-it"
+    htmlContent: String
+
+    "the type of the message"
+    type: MessageType!
+
+    "the username of the sender"
+    author: BingoPlayer
+
+    "the lobby where the message was send in"
+    lobby: BingoLobby
+
+    "the time the message was created"
+    created: String!
+}
+
+#             #
+# input Types #
+#             #
+
+input GridCoordinates {
+
+    "the grid row"
+    row: Int!
+
+    "the grid column"
+    column: Int!
+}
+
+#            #
+# enum Types #
+#            #
+
+enum MessageType {
+    USER
+    ERROR
+    INFO
+}
+
+enum RoundStatus {
+    ACTIVE
+    FINISHED
+    PAUSED
+}

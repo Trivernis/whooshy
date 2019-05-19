@@ -1,0 +1,18 @@
+@import vars
+
+@mixin default-element
+  background: lighten($primary, 10%)
+  color: $primarySurface
+  border: 2px solid $primarySurface
+  transition-duration: 0.2s
+
+@mixin fillWindow
+  position: absolute
+  top: 0
+  left: 0
+
+@mixin gridPosition($rowStart, $rowEnd, $columnStart, $columnEnd)
+  grid-row-start: $rowStart
+  grid-row-end: $rowEnd
+  grid-column-start: $columnStart
+  grid-column-end: $columnEnd

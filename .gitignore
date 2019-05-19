@@ -1,4 +1,8 @@
 package-lock
-bin
 .idea
 node_modules
+scripts/*
+tmp
+config.yaml
+sessions
+sessions-journal

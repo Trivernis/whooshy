@@ -1,0 +1,292 @@
+@import ../mixins
+@import ../vars
+
+//@media(max-device-width: 641px)
+
+//@media(min-device-width: 641px)
+
+.popup
+  @include default-element
+  position: fixed
+  display: grid
+  height: calc(50% - 1rem)
+  width: calc(40% - 1rem)
+  top: 25%
+  left: 30%
+  text-align: center
+  vertical-align: middle
+  padding: 1rem
+  z-index: 1000
+  grid-template: 60% 40% / 100%
+
+  h1
+    @include gridPosition(1, 2, 1, 1)
+
+  button
+    margin: 1rem
+    font-size: 2rem
+    @include  gridPosition(2, 3, 1, 1)
+
+.greyover
+  width: 100%
+  height: 100%
+  position: fixed
+  z-index: 99
+  top: 0
+  left: 0
+  background-color: rgba(0, 0, 0, 0.5)
+
+.playerEntryContainer
+  @include default-element
+  padding: 0.5rem
+  margin: 0 0 1rem
+  width: calc(100% - 1rem - 2px)
+  border-radius: 0
+  color: $primarySurface
+  border: 1px solid $inactive
+  position: relative
+
+  .playerWins
+    position: absolute
+    right: 0
+
+  .kickPlayerButton
+    color: $inactive
+
+.chatMessage
+  display: block
+  padding: 0.2em
+  word-break: break-word
+
+  .INFO
+    font-style: italic
+    color: $inactive
+
+  .ERROR
+    font-weight: bold
+    color: $error
+
+  .chatUsername
+    color: $inactive
+
+  img
+    max-width: 100%
+    height: auto
+    border-radius: 0.2em
+
+#container-chat
+  height: calc(100% - 2px)
+  #chat-content
+    height: calc(100% - 3rem)
+    width: calc(100% - 2px)
+    overflow-y: auto
+    overflow-x: hidden
+    border: 1px solid $inactive
+    box-shadow: inset 0 0 1rem $primary
+  #chat-input
+    width: 100%
+    height: 3rem
+
+#container-lobby-settings
+  height: 100%
+
+  h1
+    height: 3rem
+    margin: 0.5rem
+    text-align: center
+
+  #input-bingo-words
+    width: 100%
+    height: calc(100% - 10rem)
+    margin: 0
+
+  #input-grid-size
+    height: 3rem
+    width: 4rem
+
+  #button-round-start, #button-leave
+    height: 3rem
+    width: 100%
+
+  #bingo-words
+    padding: 1rem
+    width: calc(100% - 2rem)
+    height: calc(100% - 9rem)
+    margin: 0
+    overflow-y: auto
+    box-shadow: inset 0 0 1rem $primary
+
+    .bingoWord
+      display: list-item
+      list-style: none
+
+#container-players
+  height: 100%
+  width: 100%
+
+  h1
+    height: 2rem
+    margin: 0.5rem
+    text-align: center
+
+  #player-list
+    padding: 1rem
+    width: calc(100% - 2rem)
+    height: calc(100% - 5rem)
+    overflow-y: auto
+
+    .kickPlayerButton
+      background-color: #0000
+      border: none
+      padding: 0
+      margin: 0 0.5rem 0 0
+      font-size: 1em
+
+#container-grid
+  height: calc(100% - 2em)
+  width: calc(100% - 2em)
+  padding: 1em
+  overflow: auto
+
+  #grid-table
+    display: table
+    height: 100%
+    width: 100%
+    .bingoWordRow
+      display: table-row
+
+      .bingoWordPanel
+        @include default-element
+        display: table-cell
+        text-align: center
+        vertical-align: middle
+        user-select: none
+        cursor: pointer
+
+      .bingoWordPanel[b-sub='true']
+        background-color: $success
+
+      .bingoWordPanel:hover
+        background-color: $primary
+
+      .bingoWordPanel[b-sub='true']:hover
+        background-color: mix($primary, $success)
+
+      .bingoWordPanel:active
+        background-color: mix($primary, $secondary)
+
+#container-bingo-button
+  height: 100%
+  width: 100%
+
+  button
+    height: 100%
+    width: 100%
+
+#statusbar
+  display: grid
+  grid-template: 100% 0 / 1rem calc(75% - 1rem) 25%
+  background-color: darken($primary, 5%)
+  margin: 0.5rem 0 0 0
+  padding: 0.25rem
+  vertical-align: middle
+  font-size: 0.8em
+  text-align: start
+  position: absolute
+  height: 1rem
+  bottom: 0
+  left: 0
+  width: calc(100% - 0.5rem)
+
+  #status-indicator
+    height: 1rem
+    width: 1rem
+    border-radius: 100%
+    @include gridPosition(1, 2, 1,2)
+
+  #error-message
+    @include gridPosition(1, 2, 2, 3)
+    margin: auto 1em
+    text-align: start
+    color: $errorText
+
+  #container-info
+    @include gridPosition(1, 2, 3, 4)
+    text-align: left
+    width: 100%
+    height: 100%
+    margin: auto
+    color: $inactive
+
+/* main containers */
+
+#container-bingo-create
+  display: grid
+  grid-template: 5% 10% 10% 70% 5% /10% 80% 10%
+  height: 100%
+  width: 100%
+
+  #username-form
+    @include gridPosition(2, 3, 2, 3)
+    margin: auto
+
+    .statusIndicator
+      height: 1em
+      width: 1em
+      display: inline-block
+      margin: auto 1em
+
+    #input-username
+      margin: 0 0 0 3em
+
+  #lobby-form
+    @include gridPosition(3, 5, 2, 3)
+    margin: 10% auto
+
+    button
+      width: 100%
+
+#container-bingo-lobby
+  @include fillWindow
+  overflow: hidden
+  display: grid
+  grid-template: 0 10% 85% 5% / 5% 30% 30% 30% 5%
+  height: 100%
+  width: 100%
+
+  #lobby-title
+    @include gridPosition(2, 3, 2, 5)
+    margin: auto
+
+  #container-players
+    @include gridPosition(3, 4, 2, 3)
+    background-color: lighten($primary, 5%)
+
+  #container-lobby-settings
+    @include gridPosition(3, 4, 3, 4)
+    background-color: lighten($primary, 5%)
+
+  #container-chat
+    @include gridPosition(3, 4, 4, 5)
+    background-color: lighten($primary, 5%)
+
+#container-bingo-round
+  @include fillWindow
+  overflow: hidden
+  display: grid
+  height: 100%
+  width: 100%
+  grid-template: 10% 30% 55% 5% / 25% 75%
+
+  #container-players
+    @include gridPosition(2, 3, 1, 2)
+
+  #container-chat
+    @include gridPosition(3, 4, 1, 2)
+    padding: 0 1rem
+
+  #container-grid
+    @include gridPosition(2, 4, 2, 3)
+
+  #container-bingo-button
+    @include gridPosition(1, 2, 1, 2)

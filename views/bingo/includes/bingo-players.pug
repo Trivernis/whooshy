@@ -1,0 +1,14 @@
+div(id='container-players')
+    h1 Players
+    div(id='player-list')
+        each player in players
+            div(class='playerEntryContainer', b-pid=`${player.id}`)
+                if isAdmin && player.id !== adminId
+                    button(class='kickPlayerButton' onclick=`statusWrap(() => kickPlayer(${player.id}))`) ⨯
+                if player.id === adminId
+                    span(class='adminSpan')  👑
+                span(class='playerNameSpan')= player.username
+                if player.wins > 1
+                    span(class='playerWins')= `${player.wins}x🌟`
+                else if player.wins > 0
+                    span(class='playerWins') 🌟
