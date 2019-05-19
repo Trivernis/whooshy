@@ -21,11 +21,72 @@
     "markdown-it": "8.4.2",
     "markdown-it-emoji": "1.4.0",
     "markdown-it-mark": "2.0.0",
-    "markdown-it-math": "4.1.1",
     "markdown-it-smartarrows": "1.0.1",
     "morgan": "1.9.1",
     "node-sass": "4.12.0",
     "pg": "7.11.0",
     "pug": "2.0.3"
+  },
+  "devDependencies": {
+    "eslint": "^5.16.0",
+    "eslint-plugin-graphql": "^3.0.3",
+    "eslint-plugin-promise": "^4.1.1",
+    "standard": "^12.0.1"
+  },
+  "eslintConfig": {
+    "parserOptions": {
+      "ecmaVersion": 2018,
+      "sourceType": "module"
+    },
+    "env": {
+      "node": true,
+      "browser": true,
+      "jquery": true,
+      "es6": true
+    },
+    "extends": [
+      "eslint:recommended",
+      "plugin:promise/recommended"
+    ],
+    "rules": {
+      "semi": "error",
+      "semi-style": [
+        "error",
+        "last"
+      ],
+      "no-await-in-loop": "off",
+      "curly": [
+        "warn",
+        "multi",
+        "consistent"
+      ],
+      "block-spacing": [
+        "warn",
+        "always"
+      ],
+      "array-bracket-newline": [
+        "warn",
+        "consistent"
+      ],
+      "camelcase": "off",
+      "comma-spacing": [
+        "error",
+        {
+          "after": true
+        }
+      ],
+      "brace-style": [
+        "error",
+        "1tbs"
+      ],
+      "no-console": "off",
+      "promise/no-promise-in-callback": "off",
+      "promise/always-return": "off",
+      "promise/catch-or-return": "off"
+    },
+    "plugins": [
+      "eslint-plugin-graphql",
+      "eslint-plugin-promise"
+    ]
   }
 }

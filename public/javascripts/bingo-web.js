@@ -1,9 +1,11 @@
+/* eslint-disable no-unused-vars, no-undef */
+
 /**
- * Returns the value of the url-param 'game'
+ * Returns the value of the url-param 'g'
  * @returns {string}
  */
-function getGameParam() {
-    let matches = window.location.href.match(/\?game=(\w+)/);
+function getLobbyParam() {
+    let matches = window.location.href.match(/\??&?g=(\d+)/);
     if (matches)
         return matches[1];
     else
@@ -11,249 +13,463 @@ function getGameParam() {
 }
 
 /**
- * Submits the bingo words to create a game
- * @returns {Promise<void>}
+ * REturns the value of the r url param
+ * @returns {string}
  */
-async function submitBingoWords() {
-    let textContent = document.querySelector('#bingo-textarea').value;
-    let words = textContent.replace(/[<>]/g, '').split('\n').filter((el) => {
-        return (!!el && el.length > 0) // remove empty strings and non-types from word array
-    });
-    if (words.length === 0) {
-        showError('You need to provide at least one word!');
-    } else {
-        let size = document.querySelector('#bingo-grid-size').value;
-
-        let response = await postGraphqlQuery(`
-        mutation($words:[String!]!, $size:Int!) {
-          bingo {
-            createGame(input: {
-              words: $words,
-              size: $size
-            }) {
-              id
-            }
-          }
-        }`, {
-            words: words,
-            size: Number(size)
-        }, `/graphql?game=${getGameParam()}`);
-        if (response.status === 200) {
-            let gameid = response.data.bingo.createGame.id;
-            insertParam('game', gameid);
-        } else {
-            showError(`Failed to create game. HTTP Error: ${response.status}`);
-            console.error(response)
-        }
-    }
+function getRoundParam() {
+    let matches = window.location.href.match(/\??&?r=(\d+)/);
+    if (matches)
+        return matches[1];
+    else
+        return '';
 }
 
 /**
- * Gets the followup bingoSession and redirects to it
- * @returns {Promise<void>}
+ * Spawns a notification when the window is inactive (hidden).
+ * @param body
+ * @param title
  */
-async function createFollowup() {
-    let response = await postGraphqlQuery(`
-    mutation {
-      bingo {
-        createFollowupGame {
-          id
-        }
-      }
-    }`,null,`/graphql?game=${getGameParam()}`);
-    if (response.status === 200 && response.data.bingo.createFollowupGame) {
-        let gameid = response.data.bingo.createFollowupGame.id;
-        insertParam('game', gameid);
-    } else {
-        showError(`Failed to create follow up game. HTTP Error: ${response.status}`);
-        console.error(response);
+function spawnNotification(body, title) {
+    if (Notification.permission !== 'denied' && document[getHiddenNames().hidden]) {
+        let options = {
+            body: body,
+            icon: '/favicon.ico'
+        };
+        let n = new Notification(title, options);
     }
 }
 
 /**
  * Submits the value of the username-input to set the username.
- * @returns {Promise<void>}
+ * @returns {Promise<Boolean>}
  */
 async function submitUsername() {
-    let unameInput = document.querySelector('#username-input');
+    let unameInput = document.querySelector('#input-username');
     let username = unameInput.value.replace(/^\s+|\s+$/g, '');
-    if (username.length > 1 && username !== 'anonymous') {
-        let response = await postGraphqlQuery(`
-    mutation($username:String!) {
-      bingo {
-        setUsername(input: {username: $username}) {
-          id
-          username
-        }
-      }
-    }`, {
-            username: username
-        },`/graphql?game=${getGameParam()}`);
-        if (response.status === 200) {
-            unameInput.value = '';
-            unameInput.placeholder = response.data.username;
-            document.querySelector('#username-form').remove();
-            document.querySelector('.greyover').remove();
-        } else {
-            showError(`Failed to submit username. HTTP Error: ${response.status}`);
-            console.error(response);
-        }
+
+    if (username.length > 1) {
+        return await setUsername(username);
     } else {
         showError('You need to provide a username (minimum 2 characters)!');
+        return false;
     }
 }
 
 /**
- * toggles a word (toggle occures on response)
- * @param word {String} - the base64 encoded bingo word
- * @returns {Promise<void>}
+ * Sets the username for a user
+ * @param username {String} - the username
+ * @returns {Promise<boolean>}
  */
-async function submitWord(word) {
-    let response = await postGraphqlQuery(`
-    mutation($word:String!) {
-      bingo {
-        toggleWord(input: {base64Word: $word}) {
-          bingo
-          fieldGrid {
-            submitted
-            base64Word
-          }
-        }
-      }
-    }`, {
-        word: word
-    },`/graphql?game=${getGameParam()}`);
-
-    if (response.status === 200 && response.data.bingo.toggleWord) {
-        let fieldGrid = response.data.bingo.toggleWord.fieldGrid;
-        for (let row of fieldGrid) {
-            for (let field of row) {
-                document.querySelectorAll(`.bingo-word-panel[b-word="${field.base64Word}"]`).forEach(x => {
-                    x.setAttribute('b-sub', field.submitted);
-                });
+async function setUsername(username) {
+    let uname = username.substring(0, 30).replace(/[^\w- ;[\]]/g, '');
+    if (uname.length === username.length) {
+        let response = await postGraphqlQuery(`
+        mutation($username:String!) {
+          bingo {
+            setUsername(username: $username) {
+              id
+              username
             }
-        }
-        if (response.data.bingo.toggleWord.bingo) {
-            document.querySelector('#bingo-button').setAttribute('class', '');
+          }
+        }`, {username: username}, '/graphql?g='+getLobbyParam());
+        if (response.status === 200) {
+            return response.data.bingo.setUsername.username;
         } else {
-            document.querySelector('#bingo-button').setAttribute('class', 'hidden');
+            if (response.errors)
+                showError(response.errors[0].message);
+            else
+                showError(`Failed to submit username.`);
+            console.error(response);
+            return false;
         }
     } else {
-        showError(`Failed to submit word. HTTP Error: ${response.status}`);
+        showError('Your username contains illegal characters.');
+    }
+}
+
+/**
+ * Function that displays the ping in the console.
+ * @returns {Promise<number>}
+ */
+async function ping() {
+    let start = new Date().getTime();
+    let response = await postGraphqlQuery(`
+    query {
+      time
+    }`);
+    console.log(`Ping: ${(new Date().getTime()) - start} ms`);
+    return (new Date().getTime()) - start;
+}
+
+/**
+ * Joins a lobby or says to create one if none is found
+ * @returns {Promise<void>}
+ */
+async function joinLobby() {
+    if (getLobbyParam()) {
+        if (await submitUsername())
+            window.location.reload();
+    } else {
+        showError('No lobby found. Please create one.');
+    }
+}
+
+/**
+ * Creates a lobby and redirects to the lobby.
+ * @returns {Promise<boolean>}
+ */
+async function createLobby() {
+    if (await submitUsername()) {
+        let response = await postGraphqlQuery(`
+        mutation {
+          bingo {
+            createLobby {
+              id
+            }
+          }
+        }
+        `);
+        if (response.status === 200 && response.data.bingo.createLobby) {
+            insertParam('g', response.data.bingo.createLobby.id);
+            return true;
+        } else {
+            showError('Failed to create Lobby. HTTP ERROR: ' + response.status);
+            console.error(response);
+            return false;
+        }
+    }
+}
+
+/**
+ * Lets the player leave the lobby
+ * @returns {Promise<void>}
+ */
+async function leaveLobby() {
+    let response = await postGraphqlQuery(`
+    mutation($lobbyId:ID!){
+      bingo {
+        mutateLobby(id:$lobbyId) {
+          leave
+        }
+      }
+    }
+    `, {lobbyId: getLobbyParam()});
+    if (response.status === 200) {
+        insertParam('g', '');
+    } else {
+        showError('Failed to leave lobby');
         console.error(response);
     }
 }
 
 /**
- * Submits a bingo (Bingo button is pressed).
- * The game is won if the backend validated it.
+ * Kicks a player by id.
+ * @param pid
+ * @returns {Promise<void>}
+ */
+async function kickPlayer(pid) {
+    let response = await postGraphqlQuery(`
+    mutation ($lobbyId: ID!, $playerId:ID!) {
+      bingo {
+        mutateLobby(id: $lobbyId) {
+          kickPlayer(pid: $playerId) {
+            id
+          }
+        }
+      }
+    }
+    `, {lobbyId: getLobbyParam(), playerId: pid});
+    if (response.status === 200) {
+        let kickId = response.data.bingo.mutateLobby.kickPlayer.id;
+        document.querySelector(`.playerEntryContainer[b-pid='${kickId}'`).remove();
+    } else {
+        showError('Failed to kick player!');
+        console.error(response);
+    }
+}
+
+/**
+ * Executes a command
+ * @param message {String} - the message
+ */
+async function executeCommand(message) {
+    function reply(content) {
+        addChatMessage({content: content, htmlContent: content, type: 'INFO'});
+    }
+    let jsStyle = document.querySelector('#js-style');
+    message = message.replace(/\s+$/g, '');
+    let command = /(\/\w+) ?(.*)?/g.exec(message);
+    if (command && command.length >= 2) {
+        switch(command[1]) {
+            case '/help':
+                reply(`
+            <br><b>Commands: </b><br>
+            /help - shows this help <br>
+            /hideinfo - hides all info messages <br>
+            /showinfo - shows all info messages <br>
+            /ping - shows the current ping <br>
+            /username {Username} - sets the username <br><br>
+            Admin commands: <br>
+            /abortround - aborts the current round <br>
+            `);
+                break;
+            case '/hideinfo':
+                jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {display: none}';
+                break;
+            case '/showinfo':
+                jsStyle.innerHTML = '.chatMessage[msg-type="INFO"] {}';
+                break;
+            case '/ping':
+                reply(`Ping: ${await ping()} ms`);
+                break;
+            case '/abortround':
+                reply(await setRoundFinished());
+                break;
+            case '/username':
+                if (command[2]) {
+                    let uname = await setUsername(command[2]);
+                    reply(`Your username is <b>${uname}</b> now.`);
+                } else {
+                    reply('You need to provide a username');
+                }
+                break;
+            default:
+                reply('Unknown command');
+                break;
+        }
+        let chatContent = document.querySelector('#chat-content');
+        chatContent.scrollTop = chatContent.scrollHeight;
+    }
+}
+
+/**
+ * Sends a message to the chat
+ * @returns {Promise<void>}
+ */
+async function sendChatMessage() {
+    let messageInput = document.querySelector('#chat-input');
+    if (messageInput.value && messageInput.value.length > 0) {
+        let message = messageInput.value;
+        messageInput.value = '';
+        if (/^\/\.*/g.test(message)) {
+            await executeCommand(message);
+        } else {
+            let response = await postGraphqlQuery(`
+        mutation($lobbyId:ID!, $message:String!){
+          bingo {
+            mutateLobby(id:$lobbyId) {
+              sendMessage(message:$message) {
+                id
+                htmlContent
+                type
+                author {
+                  username
+                }
+              }
+            }
+          }
+        }`, {message: message, lobbyId: getLobbyParam()});
+            if (response.status === 200) {
+                addChatMessage(response.data.bingo.mutateLobby.sendMessage);
+            } else {
+                messageInput.value = message;
+                console.error(response);
+                showError('Error when sending message.');
+            }
+        }
+    }
+}
+
+/**
+ * Sets the words for the lobby
+ * @param words
+ * @param gridSize
+ * @returns {Promise<LobbyWrapper.words|*|properties.words|{default, type}|boolean>}
+ */
+async function setLobbySettings(words, gridSize) {
+    gridSize = Number(gridSize);
+    let response = await postGraphqlQuery(`
+    mutation ($lobbyId: ID!, $words: [String!]!, $gridSize:Int!) {
+      bingo {
+        mutateLobby(id: $lobbyId) {
+          setWords(words: $words) {
+            words {
+              content
+            }
+          }
+          setGridSize(gridSize: $gridSize) {
+            gridSize
+          }
+        }
+      }
+    }
+    `, {lobbyId: getLobbyParam(), words: words, gridSize: gridSize});
+    if (response.status === 200) {
+        return response.data.bingo.mutateLobby.setWords.words;
+    } else {
+        console.error(response);
+        if (response.errors)
+            showError(response.errors[0].message);
+        else
+            showError('Error when submitting lobby settings.');
+    }
+}
+
+/**
+ * Starts a new round of bingo
+ * @returns {Promise<boolean>}
+ */
+async function startRound() {
+    let textinput = document.querySelector('#input-bingo-words');
+    let words = getLobbyWords();
+    if (words.length > 0) {
+        let gridSize = document.querySelector('#input-grid-size').value || 3;
+        let resultWords = await setLobbySettings(words, gridSize);
+        if (resultWords) {
+            textinput.value = resultWords.map(x => x.content).join('\n');
+            let response = await postGraphqlQuery(`
+            mutation($lobbyId:ID!){
+              bingo {
+                mutateLobby(id:$lobbyId) {
+                  startRound {
+                    id
+                  }
+                }
+              }
+            }`, {lobbyId: getLobbyParam()});
+
+            if (response.status === 200) {
+                insertParam('r', response.data.bingo.mutateLobby.startRound.id);
+            } else {
+                console.error(response);
+                showError('Error when starting round.');
+            }
+        }
+    } else {
+        throw new Error('No words provided.');
+    }
+}
+
+/**
+ * Returns the words of the lobby word input.
+ * @returns {string[]}
+ */
+function getLobbyWords() {
+    let textinput = document.querySelector('#input-bingo-words');
+    return textinput.value.replace(/[<>]/g, '').split('\n').filter((el) => {
+        return (!!el && el.length > 0);     // remove empty strings and non-types from word array
+    });
+}
+
+/**
+ * Submits the toggle of a bingo field
+ * @param wordPanel
+ * @returns {Promise<void>}
+ */
+async function submitFieldToggle(wordPanel) {
+    let row = Number(wordPanel.getAttribute('b-row'));
+    let column = Number(wordPanel.getAttribute('b-column'));
+    let wordClass = wordPanel.getAttribute('class');
+    wordPanel.setAttribute('class', wordClass + ' pending');
+    let response = await postGraphqlQuery(`
+    mutation($lobbyId:ID!, $row:Int!, $column:Int!){
+      bingo {
+        mutateLobby(id:$lobbyId) {
+          toggleGridField(location:{row:$row, column:$column}) {
+            submitted
+            grid {
+              bingo
+            }
+          }
+        }
+      }
+    }`, {lobbyId: getLobbyParam(), row: row, column: column});
+    wordPanel.setAttribute('class', wordClass);
+
+    if (response.status === 200) {
+        wordPanel.setAttribute('b-sub', response.data.bingo.mutateLobby.toggleGridField.submitted);
+        if (response.data.bingo.mutateLobby.toggleGridField.grid.bingo)
+            document.querySelector('#container-bingo-button').setAttribute('class', '');
+        else
+            document.querySelector('#container-bingo-button').setAttribute('class', 'hidden');
+    } else {
+        console.error(response);
+        showError('Error when submitting field toggle');
+    }
+}
+
+/**
+ * Sets the round status to FINISHED
+ * @returns {Promise<string>}
+ */
+async function setRoundFinished() {
+    let response = await postGraphqlQuery(`
+    mutation($lobbyId:ID!){
+      bingo {
+        mutateLobby(id:$lobbyId) {
+          setRoundStatus(status:FINISHED) {
+            status
+          }
+        }
+      }
+    }`, {lobbyId: getLobbyParam()});
+
+    if (response.status === 200 && response.data.bingo.mutateLobby.setRoundStatus) {
+        return 'Set round to finished';
+    } else {
+        console.error(response);
+        showError('Failed to set round status');
+    }
+}
+
+/**
+ * Submits bingo
  * @returns {Promise<void>}
  */
 async function submitBingo() {
     let response = await postGraphqlQuery(`
-    mutation {
+    mutation($lobbyId:ID!){
       bingo {
-        submitBingo {
-          id
-          bingos
-          players {
-            id
-            username
-          }
-        }
-      }
-    }`,null,`/graphql?game=${getGameParam()}`);
-    if (response.status === 200 && response.data.bingo.submitBingo) {
-        let bingoSession = response.data.bingo.submitBingo;
-        if (bingoSession.bingos.length > 0) {
-            displayWinner(bingoSession.players.find(x => x.id === bingoSession.bingos[0]).username);
-            clearInterval(refrInterval)
-        }
-    } else {
-        showError(`Failed to submit Bingo. HTTP Error: ${response.status}`);
-        console.error(response);
-    }
-}
-
-/**
- * Refreshes the information (by requesting information about the current game).
- * Is used to see if one player has scored a bingo and which players are in the game.
- * @returns {Promise<void>}
- */
-async function refresh() {
-    let response = await postGraphqlQuery(`
-    query {
-      bingo {
-        gameInfo {
-          id
-          bingos
-          players {
-            username
-            id
-          }
-          getMessages {
-            id
-            username
-            type
-            htmlContent
-          }
-        }
-      }
-    }`, null, `/graphql?game=${getGameParam()}`);
-    if (response.status === 200 && response.data.bingo.gameInfo) {
-        let bingoSession = response.data.bingo.gameInfo;
-
-        if (bingoSession.bingos.length > 0) {
-            displayWinner(bingoSession.players.find(x => x.id === bingoSession.bingos[0]).username);
-            clearInterval(refrInterval)
-        } else {
-            for (let player of bingoSession.players) {
-                let foundPlayerDiv = document.querySelector(`.player-container[b-pid='${player.id}'`);
-                if (!foundPlayerDiv) {
-                    let playerDiv = document.createElement('div');
-                    playerDiv.setAttribute('class', 'player-container');
-                    playerDiv.setAttribute('b-pid', player.id);
-                    playerDiv.innerHTML = `<span class="player-name-span">${player.username}</span>`;
-                    document.querySelector('#players-container').appendChild(playerDiv);
-                } else {
-                    let playerNameSpan = foundPlayerDiv.querySelector('.player-name-span');
-                    if (playerNameSpan.innerText !== player.username) {
-                        playerNameSpan.innerText = player.username;
-                    }
-                }
+        mutateLobby(id:$lobbyId) {
+          submitBingo {
+            winner {
+              id
+              username
             }
+            status
+            start
+            finish
+          }
         }
-        for (let chatMessage of bingoSession.getMessages) {
-            if (!document.querySelector(`.chatMessage[msg-id='${chatMessage.id}'`))
-                addChatMessage(chatMessage);
-        }
-    } else  {
-        if (response.status === 400)
-            clearInterval(refrInterval);
+      }
+    }`, {lobbyId: getLobbyParam()});
+
+    if (response.status === 200 && response.data.bingo.mutateLobby.submitBingo) {
+        let round = response.data.bingo.mutateLobby.submitBingo;
+        displayWinner(round);
+    } else {
         console.error(response);
-        showError('No session found. Are cookies allowed?');
+        showError('Failed to submit bingo');
     }
 }
 
 /**
  * Displays the winner of the game in a popup.
- * @param name {String} - the name of the winner
+ * @param roundInfo {Object} - the round object as returned by graphql
  */
-function displayWinner(name) {
+function displayWinner(roundInfo) {
+    let name = roundInfo.winner.username;
     let winnerDiv = document.createElement('div');
     let greyoverDiv = document.createElement('div');
     winnerDiv.setAttribute('class', 'popup');
     winnerDiv.innerHTML = `
         <h1>${name} has won!</h1>
-        <button id="btn-again" onclick="createFollowup()">Again!</button>
-        <button id="btn-leave" onclick="window.location.reload()">Leave</button>
+        <button id="button-lobbyreturn" onclick="window.location.reload()">Return to Lobby!</button>
     `;
     greyoverDiv.setAttribute('class', 'greyover');
-    //winnerDiv.onclick = () => {
-    //    window.location.reload();
-    //};
     document.body.append(greyoverDiv);
     document.body.appendChild(winnerDiv);
+    spawnNotification(`${name} has won!`, 'Bingo');
 }
 
 /**
@@ -261,101 +477,355 @@ function displayWinner(name) {
  * @param errorMessage
  */
 function showError(errorMessage) {
-    let errorDiv = document.createElement('div');
-    errorDiv.setAttribute('class', 'errorDiv');
-    errorDiv.innerHTML = `<span>${errorMessage}</span>`;
-    let contCont = document.querySelector('#content-container');
-    if (contCont)
-        contCont.appendChild(errorDiv);
-    else
-        alert(errorMessage);
+    let errorContainer = document.querySelector('#error-message');
+    let indicator = document.querySelector('#status-indicator');
+    indicator.setAttribute('status', 'error');
+    errorContainer.innerText = errorMessage;
     setTimeout(() => {
-        errorDiv.remove();
-    }, 10000);
+        errorContainer.innerText = '';
+        indicator.setAttribute('status', 'idle');
+    }, 5000);
 }
 
-async function sendChatMessage() {
-    let messageInput = document.querySelector('#chat-input');
-    if (messageInput.value && messageInput.value.length > 0) {
-        let message = messageInput.value;
-        let response = await postGraphqlQuery(`
-        mutation($message: String!) {
-          bingo {
-            sendChatMessage(input: { message: $message }) {
+/**
+ * Wraps a function in a status report to display the status
+ * @param func
+ */
+async function statusWrap(func) {
+    let indicator = document.querySelector('#status-indicator');
+    indicator.setAttribute('status', 'pending');
+    try {
+        await func();
+        indicator.setAttribute('status', 'success');
+        setTimeout(() => {
+            indicator.setAttribute('status', 'idle');
+        }, 1000);
+    } catch (err) {
+        showError(err? err.message : 'Unknown error');
+    }
+}
+
+/**
+ * Loads information about the rounds winner and the round stats.
+ * @returns {Promise<boolean>}
+ */
+async function loadWinnerInfo() {
+    let response = await postGraphqlQuery(`
+    query($lobbyId:ID!) {
+      bingo {
+        lobby(id:$lobbyId) {
+          currentRound {
+            status
+            winner {
               id
-              htmlContent
               username
-              type
             }
+            start
+            finish
           }
-        }`,{message: message}, `/graphql?game=${getGameParam()}`);
-        if (response.status === 200) {
-            addChatMessage(response.data.bingo.sendChatMessage);
-            messageInput.value = '';
-        } else {
-            console.error(response);
-            showError('Error when sending message.');
         }
+      }
+    }`, {lobbyId: getLobbyParam()});
+    if (response.status === 200) {
+        let roundInfo = response.data.bingo.lobby.currentRound;
+        if (roundInfo.winner)
+            displayWinner(roundInfo);
+        else
+            window.location.reload();
+    } else {
+        console.error(response);
+        showError('Failed to get round information');
     }
 }
 
 /**
  * Adds a message to the chat
  * @param messageObject {Object} - the message object returned by graphql
+ * @param player {Number} - the id of the player
  */
-function addChatMessage(messageObject) {
+function addChatMessage(messageObject, player) {
     let msgSpan = document.createElement('span');
     msgSpan.setAttribute('class', 'chatMessage');
+    msgSpan.setAttribute('msg-type', messageObject.type);
     msgSpan.setAttribute('msg-id', messageObject.id);
-    if (messageObject.type === "USER") {
+    if (messageObject.type === "USER")
         msgSpan.innerHTML = `
-        <span class="chatUsername">${messageObject.username}:</span>
+        <span class="chatUsername">${messageObject.author.username}:</span>
         <span class="chatMessageContent">${messageObject.htmlContent}</span>`;
-    } else {
+     else
         msgSpan.innerHTML = `
         <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
-    }
+
+    if (messageObject.author && messageObject.author.id !== player)
+        spawnNotification(messageObject.content, messageObject.author.username);
     let chatContent = document.querySelector('#chat-content');
     chatContent.appendChild(msgSpan);
     chatContent.scrollTop = chatContent.scrollHeight;       // auto-scroll to bottom
 }
 
 /**
- * Executes the provided function if the key-event is an ENTER-key
- * @param event {Event} - the generated key event
- * @param func {function} - the function to execute on enter
+ * Adds a player to the player view
+ * @param player {Object} - player as returned by graphql
+ * @param options {Object} - meta information
  */
-function submitOnEnter(event, func) {
-    if (event.which === 13)
-        func();
+function addPlayer(player, options) {
+    let playerContainer = document.createElement('div');
+    playerContainer.setAttribute('class', 'playerEntryContainer');
+    playerContainer.setAttribute('b-pid', player.id);
+
+    if (options.isAdmin && player.id !== options.admin)
+        playerContainer.innerHTML = `<button class="kickPlayerButton" onclick="kickPlayer(${player.id})">⨯</button>`;
+    playerContainer.innerHTML += `<span class="playernameSpan">${player.username}</span>`;
+
+    if (player.id === options.admin)
+        playerContainer.innerHTML += "<span class='adminSpan'> 👑</span>";
+    document.querySelector('#player-list').appendChild(playerContainer);
 }
 
 /**
- * Toggles the displayChat class on the content container to switch between chat-view and grid view
+ * Refreshes the bingo chat
+ * @returns {Promise<void>}
  */
-function toggleChatView() {
-    let contentContainer = document.querySelector('#content-container');
-    if (contentContainer.getAttribute('class') === 'displayChat')
-        contentContainer.setAttribute('class', '');
-    else
-        contentContainer.setAttribute('class', 'displayChat')
+async function refreshChat() {
+    try {
+        let response = await postGraphqlQuery(`
+        query($lobbyId:ID!){
+          bingo {
+            player {
+                id
+            }
+            lobby(id:$lobbyId) {
+              messages {
+                id
+                type
+                htmlContent
+                content
+                author {
+                  id
+                  username
+                }
+              }
+            }
+          }
+        }`, {lobbyId: getLobbyParam()});
+        if (response.status === 200) {
+            let messages = response.data.bingo.lobby.messages;
+            for (let message of messages)
+                if (!document.querySelector(`.chatMessage[msg-id="${message.id}"]`))
+                    addChatMessage(message, response.data.bingo.player.id);
+        } else {
+            showError('Failed to refresh messages');
+            console.error(response);
+        }
+    } catch (err) {
+        showError('Failed to refresh messages');
+        console.error(err);
+    }
+    console.log('Refresh Chat');
 }
 
-window.addEventListener("unhandledrejection", function(promiseRejectionEvent) {
+/**
+ * Refreshes the player list
+ * @returns {Promise<void>}
+ */
+async function refreshPlayers() {
+    try {
+        let response = await postGraphqlQuery(`
+        query ($lobbyId: ID!) {
+          bingo {
+            player {
+              id
+            }
+            lobby(id: $lobbyId) {
+              players {
+                id
+                username
+                wins(lobbyId: $lobbyId)
+              }
+              admin {
+                id
+              }
+            }
+          }
+        }
+        `, {lobbyId: getLobbyParam()});
+        if (response.status === 200) {
+            let players = response.data.bingo.lobby.players;
+            let adminId = response.data.bingo.lobby.admin.id;
+            let isAdmin = response.data.bingo.player.id === adminId;
+            for (let player of players)
+                if (!document.querySelector(`.playerEntryContainer[b-pid="${player.id}"]`))
+                    addPlayer(player, {admin: adminId, isAdmin: isAdmin});
+        } else {
+            showError('Failed to refresh players');
+            console.error(response);
+        }
+    } catch (err) {
+        showError('Failed to refresh players');
+        console.error(err);
+    }
+}
+
+/**
+ * Removes players that are not existent in the player array
+ * @param players {Array<Object>} - player id response of graphql
+ */
+function removeLeftPlayers(players) {
+    for (let playerEntry of document.querySelectorAll('.playerEntryContainer'))
+        if (!players.find(x => (x.id === playerEntry.getAttribute('b-pid'))))
+            playerEntry.remove();
+}
+
+/**
+ * Refreshes if a player-refresh is needed.
+ * Removes players that are not in the lobby anyomre.
+ * @param players
+ */
+function checkPlayerRefresh(players) {
+    let playerRefresh = false;
+    removeLeftPlayers(players);
+    for (let player of players)
+        if (!document.querySelector(`.playerEntryContainer[b-pid="${player.id}"]`))
+            playerRefresh = true;
+    if (playerRefresh)
+        statusWrap(refreshPlayers);
+}
+
+/**
+ * Checks if messages need to be refreshed and does it if it needs to.
+ * @param messages
+ */
+function checkMessageRefresh(messages) {
+    let messageRefresh = false;
+    for (let message of messages)
+        if (!document.querySelector(`.chatMessage[msg-id="${message.id}"]`))
+            messageRefresh = true;
+    if (messageRefresh)
+        statusWrap(refreshChat);
+}
+
+/**
+ * refreshes the lobby and calls itself with a timeout
+ * @returns {Promise<void>}
+ */
+async function refreshLobby() {
+    try {
+        let response = await postGraphqlQuery(`
+        query($lobbyId:ID!){
+          bingo {
+            lobby(id:$lobbyId) {
+              players {
+                id
+              }
+              messages {
+                id
+              }
+              currentRound {
+                id
+                status
+              }
+              words {
+                content
+              }
+            }
+          }
+        }`, {lobbyId: getLobbyParam()});
+        if (response.status === 200) {
+            let {players, messages, currentRound} = response.data.bingo.lobby;
+            checkPlayerRefresh(players);
+            checkMessageRefresh(messages);
+            let wordContainer = document.querySelector('#bingo-words');
+
+            if (wordContainer)
+                wordContainer.innerHTML = `<span class="bingoWord">
+                ${response.data.bingo.lobby.words.map(x => x.content).join('</span><span class="bingoWord">')}</span>`;
+
+            if (currentRound && currentRound.status === 'ACTIVE' && Number(currentRound.id) !== Number(getRoundParam())) {
+                insertParam('r', currentRound.id);
+                spawnNotification('The round started!', 'Bingo');
+            }
+
+        } else {
+            showError('Failed to refresh lobby');
+            console.error(response);
+        }
+    } catch (err) {
+        showError('Failed to refresh lobby');
+        console.error(err);
+    } finally {
+        setTimeout(refreshLobby, 1000);
+    }
+}
+
+/**
+ * Checks the status of the lobby and the current round.
+ * @returns {Promise<void>}
+ */
+async function refreshRound() {
+    let roundOver = false;
+    try {
+        let response = await postGraphqlQuery(`
+        query($lobbyId:ID!) {
+          bingo {
+            lobby(id:$lobbyId) {
+              players {
+                id
+              }
+              messages {
+                id
+              }
+              currentRound {
+                id
+                status
+              }
+            }
+          }
+        }`, {lobbyId: getLobbyParam()});
+        if (response.status === 200) {
+            let {players, messages, currentRound} = response.data.bingo.lobby;
+
+            checkPlayerRefresh(players);
+            checkMessageRefresh(messages);
+            if (!currentRound || currentRound.status === "FINISHED") {
+                roundOver = true;
+                await loadWinnerInfo();
+            }
+        } else {
+            showError('Failed to refresh round');
+            console.error(response);
+        }
+    } catch (err) {
+        showError('Failed to refresh round');
+        console.error(err);
+    } finally {
+        if (!roundOver)
+            setTimeout(refreshRound, 1000);
+    }
+}
+
+window.addEventListener("unhandledrejection", function (promiseRejectionEvent) {
     promiseRejectionEvent.promise.catch(err => console.log(err));
-    showError('Connection problems... Is the server down?');
+    showError('Connection problems...');
 });
 
-window.onload = () => {
-    if (document.querySelector('#chat-container'))
-        refresh();
-    if (window && !document.querySelector('#bingoform')) {
-        refrInterval = setInterval(refresh, 1000);      // global variable to clear
+// prevent ctrl + s
+window.addEventListener("keydown", async (e) => {
+    if (e.which === 83 && (navigator.platform.match("Mac") ? e.metaKey : e.ctrlKey)) {
+        e.preventDefault();
+        if (document.querySelector('#input-bingo-words')) {
+            let gridSize = document.querySelector('#input-grid-size').value || 3;
+            await statusWrap(async () => await setLobbySettings(getLobbyWords(), gridSize));
+        }
     }
-    let gridSizeElem = document.querySelector('#bingo-grid-size');
-    document.querySelector('#bingo-grid-y').innerText = gridSizeElem.value;
-    gridSizeElem.oninput = () => {
-        document.querySelector('#bingo-grid-y').innerText = gridSizeElem.value;
-        document.querySelector('#word-count').innerText = `Please provide at least ${gridSizeElem.value**2} phrases:`;
-    };
+}, false);
+
+window.onload = async () => {
+    if ("Notification" in window)
+        if (Notification.permission !== 'denied') {
+            try {
+                await Notification.requestPermission();
+            } catch (err) {
+                showError(err.message);
+            }
+        }
 };

@@ -1,0 +1,15 @@
+div(id='container-chat')
+    style(id='js-style')
+    div(id='chat-content')
+        for message in messages
+            span.chatMessage(type=message.type msg-id=message.id)
+                if message.type === 'USER'
+                    span.chatUsername= `${message.username}: `
+                span(class=`chatMessageContent ${message.type}`)!= message.htmlContent
+    input(
+        id='chat-input'
+        type='text'
+        placeholder='send message'
+        onkeypress='submitOnEnter(event, () => statusWrap(sendChatMessage))'
+        maxlength="250"
+        autocomplete='off')

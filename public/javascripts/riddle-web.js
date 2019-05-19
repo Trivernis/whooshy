@@ -1,3 +1,10 @@
+/* eslint-disable no-unused-vars, no-undef */
+
+/**
+ * start the download of a subreddit
+ * @param subredditName {String} - the name of the subreddit to download
+ * @returns {Promise<any>}
+ */
 async function startSubredditDownload(subredditName) {
     let data = await postLocData({
         subreddit: subredditName
@@ -5,6 +12,11 @@ async function startSubredditDownload(subredditName) {
     return JSON.parse(data.data);
 }
 
+/**
+ * Get the status of a download
+ * @param downloadId {String} - the id of the download to get the status for
+ * @returns {Promise<any>}
+ */
 async function getDownloadStatus(downloadId) {
     let data = await postLocData({
         id: downloadId
@@ -12,6 +24,11 @@ async function getDownloadStatus(downloadId) {
     return JSON.parse(data.data);
 }
 
+/**
+ * refreshes information about a specific download
+ * @param downloadId {String} - the id of the download
+ * @returns {Promise<void>}
+ */
 async function refreshDownloadInfo(downloadId) {
     let response = await getDownloadStatus(downloadId);
 
@@ -20,7 +37,7 @@ async function refreshDownloadInfo(downloadId) {
     let subredditName = dlDiv.getAttribute('subreddit-name');
 
     if (response.status === 'pending') {
-        setTimeout(() => refreshDownloadInfo(downloadId), 1000)
+        setTimeout(() => refreshDownloadInfo(downloadId), 1000);
     } else {
         let dlLink = document.createElement('a');
         dlLink.setAttribute('href', response.file);
@@ -34,6 +51,10 @@ async function refreshDownloadInfo(downloadId) {
     }
 }
 
+/**
+ * Submit a subreddit to download (called by button)
+ * @returns {Promise<void>}
+ */
 async function submitDownload() {
     let subredditName = document.querySelector('#subreddit-input').value;
     let response = await startSubredditDownload(subredditName);

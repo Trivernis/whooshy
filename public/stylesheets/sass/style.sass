@@ -4,7 +4,7 @@
 
 @media (min-device-width: 320px)
   html
-    font-size: 4.5vw
+    font-size: 4vw
 
 @media (min-device-width: 481px)
   html
@@ -29,7 +29,8 @@
 body
   background-color: $primary
   color: $primarySurface
-  font-family: Arial, sans-serif
+  font-family: $fontRegular
+  scrollbar-color: $secondary lighten($primary, 5)
 
 button
   @include default-element
@@ -46,16 +47,42 @@ button:active
   background-color: lighten($secondary, 15%)
 
 input
-  @include default-element
+  background-color: lighten($primary, 10%)
+  color: $primarySurface
+  border: 1px solid $inactive
+  transition-duration: 0.2s
   font-size: 1.2rem
-  background-color: lighten($primary, 15%)
   padding: 0.7rem
+  font-family: $fontRegular
+
+input:focus
+  background-color: lighten($primary, 15%)
+  border: 1px solid $primarySurface
+
+input[type='number']
+  text-align: center
 
 textarea
   background-color: lighten($primary, 15%)
+  color: $primarySurface
+  resize: none
+  font-family: $fontRegular
 
 a
-  color: $secondary
+  color: mix($secondary, $primarySurface, 75%)
+
+mark
+  background-color: $secondary
+  color: $primarySurface
+
+mark > a
+  color: white
+
+code
+  background-color: transparentize(darken($primary, 10%), 0.5)
+  border-radius: 0.25em
+  font-family: $fontCode
+  padding: 0 0.25em
 
 ::-webkit-scrollbar
   width: 12px
