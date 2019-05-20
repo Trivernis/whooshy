@@ -139,7 +139,7 @@ class BingoDataManager {
      * @returns {Promise<*>}
      */
     async updateLobbyExpiration(lobbyId) {
-        return await this._queryDatabase(this.queries.updateLobbyExpire.sql, [lobbyId]);
+        return await this._queryFirstResult(this.queries.updateLobbyExpire.sql, [lobbyId]);
     }
 
     /**
@@ -919,7 +919,7 @@ class LobbyWrapper {
      */
     async _loadLobbyInfo(force) {
         if (!this._infoLoaded && !force) {
-            let row = await bdm.getLobbyInfo(this.id);
+            let row = await bdm.updateLobbyExpiration(this.id);
             this._assignProperties(row);
         }
     }
@@ -938,6 +938,14 @@ class LobbyWrapper {
             this.last_round = row.last_round;
             this._infoLoaded = true;
         }
+    }
+
+    /**
+     * Emits an event is a socket exists for the lobby
+     */
+    emit() {
+        if (this.socket)
+            this.socket.emit(...arguments);
     }
 
     /**
@@ -1073,7 +1081,7 @@ class LobbyWrapper {
             await this._createRound();
             await this._createGrids();
             await this.setRoundStatus('ACTIVE');
-            this.socket.emit('statusChange', 'ACTIVE');
+            this.emit('statusChange', 'ACTIVE');
         }
     }
 
@@ -1128,7 +1136,7 @@ class LobbyWrapper {
                 await this.addWord(word);
             for (let word of removedWords)
                  await this.removeWord(word.id);
-            this.socket.emit('wordsChange');
+            this.emit('wordsChange');
         }
     }
 
@@ -1165,7 +1173,7 @@ class LobbyWrapper {
      */
     async addInfoMessage(message) {
         let result = await bdm.addInfoMessage(this.id, message);
-        this.socket.emit('message', await resolveMessage(new MessageWrapper(result)));
+        this.emit('message', await resolveMessage(new MessageWrapper(result)));
     }
 
     /**
@@ -1176,7 +1184,7 @@ class LobbyWrapper {
     async addPlayer(playerId) {
         await bdm.addPlayerToLobby(playerId, this.id);
         let playerWrapper = new PlayerWrapper(playerId);
-        this.socket.emit('playerJoin', await resolvePlayer(playerWrapper));
+        this.emit('playerJoin', await resolvePlayer(playerWrapper));
         let username = await playerWrapper.username();
         await this.addInfoMessage(`${username} joined.`);
         await this._loadLobbyInfo(true);
@@ -1190,7 +1198,7 @@ class LobbyWrapper {
     async removePlayer(playerId) {
         await bdm.removePlayerFromLobby(playerId, this.id);
         let username = await new PlayerWrapper(playerId).username();
-        this.socket.emit('playerLeave', playerId);
+        this.emit('playerLeave', playerId);
         await this.addInfoMessage(`${username} left.`);
         await this._loadLobbyInfo(true);
     }
@@ -1213,7 +1221,7 @@ class LobbyWrapper {
         let currentRound = await this.currentRound();
         await currentRound.updateStatus(status);
         await this.addInfoMessage(`Admin set round status to ${status}`);
-        this.socket.emit('statusChange', status);
+        this.emit('statusChange', status);
 
         if (status === 'FINISHED')
             await bdm.clearGrids(this.id);
@@ -1617,9 +1625,11 @@ router.init = async (bingoIo, io) => {
 
                         if (req.query.g) {
                             let lobbyWrapper = new LobbyWrapper(req.query.g);
-                            lobbyWrapper.socket.emit('usernameChange',
-                                await resolvePlayer(new PlayerWrapper(playerId), req.query.g));
-                            await lobbyWrapper.addInfoMessage(`${oldName} changed username to ${username}`);
+                            if (await lobbyWrapper.exists()) {
+                                lobbyWrapper.emit('usernameChange',
+                                    await resolvePlayer(new PlayerWrapper(playerId), req.query.g));
+                                await lobbyWrapper.addInfoMessage(`${oldName} changed username to ${username}`);
+                            }
                         }
                     }
                     return new PlayerWrapper(playerId);
@@ -1633,7 +1643,7 @@ router.init = async (bingoIo, io) => {
                     if (gridSize > 0 && gridSize < 10) {
                         let result = await bdm.createLobby(playerId, gridSize);
                         createSocketIfNotExist(io, result.id);
-                        return new LobbyWrapper(result.id);
+                        return new LobbyWrapper(result.id, result);
                     } else {
                         res.status(413);
                     }
