@@ -549,11 +549,12 @@ function addChatMessage(messageObject, player) {
     msgSpan.setAttribute('class', 'chatMessage');
     msgSpan.setAttribute('msg-type', messageObject.type);
     msgSpan.setAttribute('msg-id', messageObject.id);
+
     if (messageObject.type === "USER")
         msgSpan.innerHTML = `
         <span class="chatUsername">${messageObject.author.username}:</span>
         <span class="chatMessageContent">${messageObject.htmlContent}</span>`;
-     else
+    else
         msgSpan.innerHTML = `
         <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
 
@@ -622,7 +623,6 @@ async function refreshChat() {
         showError('Failed to refresh messages');
         console.error(err);
     }
-    console.log('Refresh Chat');
 }
 
 /**
