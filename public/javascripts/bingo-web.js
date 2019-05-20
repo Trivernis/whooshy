@@ -1,5 +1,210 @@
 /* eslint-disable no-unused-vars, no-undef */
 
+class BingoGraphqlHelper {
+
+    /**
+     * Sets the username for a user
+     * @param username {String} - the username
+     * @returns {Promise<boolean>}
+     */
+    static async setUsername(username) {
+        username = username.replace(/^\s+|\s+$/g, '');
+        let uname = username.replace(/[\n\t👑🌟]|^\s+|\s+$/gu, '');
+        if (uname.length === username.length) {
+            let response = await postGraphqlQuery(`
+            mutation($username:String!) {
+              bingo {
+                setUsername(username: $username) {
+                  id
+                  username
+                }
+              }
+            }`, {username: username}, '/graphql?g=' + getLobbyParam());
+            if (response.status === 200) {
+                return response.data.bingo.setUsername.username;
+            } else {
+                if (response.errors)
+                    showError(response.errors[0].message);
+                 else
+                    showError(`Failed to submit username.`);
+
+                console.error(response);
+                return false;
+            }
+        } else {
+            showError(`Your username contains illegal characters (${username.replace(uname, '')}).`);
+        }
+    }
+
+    /**
+     * Creates a lobby via the graphql endpoint
+     * @returns {Promise<boolean>}
+     */
+    static async createLobby() {
+        let response = await postGraphqlQuery(`
+        mutation {
+          bingo {
+            createLobby {
+              id
+            }
+          }
+        }
+        `);
+        if (response.status === 200 && response.data.bingo.createLobby) {
+            insertParam('g', response.data.bingo.createLobby.id);
+            return true;
+        } else {
+            showError('Failed to create Lobby. HTTP ERROR: ' + response.status);
+            console.error(response);
+            return false;
+        }
+    }
+
+    /**
+     * Leaves a lobby via the graphql endpoint
+     * @returns {Promise<void>}
+     */
+    static async leaveLobby() {
+        let response = await postGraphqlQuery(`
+        mutation($lobbyId:ID!){
+          bingo {
+            mutateLobby(id:$lobbyId) {
+              leave
+            }
+          }
+        }
+        `, {lobbyId: getLobbyParam()});
+        if (response.status === 200) {
+            insertParam('g', '');
+        } else {
+            showError('Failed to leave lobby');
+            console.error(response);
+        }
+    }
+
+    /**
+     * Kicks a player
+     * @param pid
+     * @returns {Promise<void>}
+     */
+    static async kickPlayer(pid) {
+        let response = await postGraphqlQuery(`
+        mutation ($lobbyId: ID!, $playerId:ID!) {
+          bingo {
+            mutateLobby(id: $lobbyId) {
+              kickPlayer(pid: $playerId) {
+                id
+              }
+            }
+          }
+        }
+        `, {lobbyId: getLobbyParam(), playerId: pid});
+        if (response.status === 200) {
+            let kickId = response.data.bingo.mutateLobby.kickPlayer.id;
+            document.querySelector(`.playerEntryContainer[b-pid='${kickId}'`).remove();
+        } else {
+            showError('Failed to kick player!');
+            console.error(response);
+        }
+    }
+
+    /**
+     * Loads information about the rounds winner and the round stats.
+     * @returns {Promise<boolean>}
+     */
+    static async loadWinnerInfo() {
+        let response = await postGraphqlQuery(`
+        query($lobbyId:ID!) {
+          bingo {
+            lobby(id:$lobbyId) {
+              currentRound {
+                status
+                winner {
+                  id
+                  username
+                }
+                start
+                finish
+              }
+            }
+          }
+        }`, {lobbyId: getLobbyParam()});
+        if (response.status === 200) {
+            let roundInfo = response.data.bingo.lobby.currentRound;
+            if (roundInfo.winner)
+                displayWinner(roundInfo);
+             else
+                window.location.reload();
+
+        } else {
+            console.error(response);
+            showError('Failed to get round information');
+        }
+    }
+
+    /**
+     * Loads the lobby wors in the words element via graphql.
+     * @returns {Promise<void>}
+     */
+    static async loadLobbyWords() {
+        let response = await postGraphqlQuery(`
+        query($lobbyId:ID!){
+          bingo {
+            lobby(id:$lobbyId) {
+              words {
+                content
+              }
+            }
+          }
+        }`, {lobbyId: getLobbyParam()});
+
+        if (response.status === 200) {
+            let wordContainer = document.querySelector('#bingo-words');
+
+            if (wordContainer)
+                wordContainer.innerHTML = `<span class="bingoWord">
+                ${response.data.bingo.lobby.words.map(x => x.content).join('</span><span class="bingoWord">')}</span>`;
+        } else {
+            showError('Failed to load words.');
+        }
+    }
+
+    /**
+     * Sets the settings of the lobby
+     * @param words
+     * @param gridSize
+     * @returns {Promise<LobbyWrapper.words|*|properties.words|{default, type}|boolean>}
+     */
+    static async setLobbySettings(words, gridSize) {
+        gridSize = Number(gridSize);
+        let response = await postGraphqlQuery(`
+        mutation ($lobbyId: ID!, $words: [String!]!, $gridSize:Int!) {
+          bingo {
+            mutateLobby(id: $lobbyId) {
+              setWords(words: $words) {
+                words {
+                  content
+                }
+              }
+              setGridSize(gridSize: $gridSize) {
+                gridSize
+              }
+            }
+          }
+        }
+        `, {lobbyId: getLobbyParam(), words: words, gridSize: gridSize});
+        if (response.status === 200) {
+            return response.data.bingo.mutateLobby.setWords.words;
+        } else {
+            console.error(response);
+            if (response.errors)
+                showError(response.errors[0].message);
+            else
+                showError('Error when submitting lobby settings.');
+        }
+    }
+}
+
 /**
  * Returns the value of the url-param 'g'
  * @returns {string}
@@ -8,19 +213,7 @@ function getLobbyParam() {
     let matches = window.location.href.match(/\??&?g=(\d+)/);
     if (matches)
         return matches[1];
-    else
-        return '';
-}
-
-/**
- * REturns the value of the r url param
- * @returns {string}
- */
-function getRoundParam() {
-    let matches = window.location.href.match(/\??&?r=(\d+)/);
-    if (matches)
-        return matches[1];
-    else
+     else
         return '';
 }
 
@@ -48,43 +241,10 @@ async function submitUsername() {
     let username = unameInput.value;
 
     if (username.length > 1 && username.length <= 30) {
-        return await setUsername(username);
+        return await BingoGraphqlHelper.setUsername(username);
     } else {
         showError('You need to provide a username (min. 2 characters, max. 30)!');
         return false;
-    }
-}
-
-/**
- * Sets the username for a user
- * @param username {String} - the username
- * @returns {Promise<boolean>}
- */
-async function setUsername(username) {
-    username = username.replace(/^\s+|\s+$/g, '');
-    let uname = username.replace(/[\n\t👑🌟]|^\s+|\s+$/gu, '');
-    if (uname.length === username.length) {
-        let response = await postGraphqlQuery(`
-        mutation($username:String!) {
-          bingo {
-            setUsername(username: $username) {
-              id
-              username
-            }
-          }
-        }`, {username: username}, '/graphql?g='+getLobbyParam());
-        if (response.status === 200) {
-            return response.data.bingo.setUsername.username;
-        } else {
-            if (response.errors)
-                showError(response.errors[0].message);
-            else
-                showError(`Failed to submit username.`);
-            console.error(response);
-            return false;
-        }
-    } else {
-        showError(`Your username contains illegal characters (${username.replace(uname, '')}).`);
     }
 }
 
@@ -120,25 +280,8 @@ async function joinLobby() {
  * @returns {Promise<boolean>}
  */
 async function createLobby() {
-    if (await submitUsername()) {
-        let response = await postGraphqlQuery(`
-        mutation {
-          bingo {
-            createLobby {
-              id
-            }
-          }
-        }
-        `);
-        if (response.status === 200 && response.data.bingo.createLobby) {
-            insertParam('g', response.data.bingo.createLobby.id);
-            return true;
-        } else {
-            showError('Failed to create Lobby. HTTP ERROR: ' + response.status);
-            console.error(response);
-            return false;
-        }
-    }
+    if (await submitUsername())
+        await BingoGraphqlHelper.createLobby();
 }
 
 /**
@@ -146,21 +289,7 @@ async function createLobby() {
  * @returns {Promise<void>}
  */
 async function leaveLobby() {
-    let response = await postGraphqlQuery(`
-    mutation($lobbyId:ID!){
-      bingo {
-        mutateLobby(id:$lobbyId) {
-          leave
-        }
-      }
-    }
-    `, {lobbyId: getLobbyParam()});
-    if (response.status === 200) {
-        insertParam('g', '');
-    } else {
-        showError('Failed to leave lobby');
-        console.error(response);
-    }
+    await BingoGraphqlHelper.leaveLobby();
 }
 
 /**
@@ -169,24 +298,7 @@ async function leaveLobby() {
  * @returns {Promise<void>}
  */
 async function kickPlayer(pid) {
-    let response = await postGraphqlQuery(`
-    mutation ($lobbyId: ID!, $playerId:ID!) {
-      bingo {
-        mutateLobby(id: $lobbyId) {
-          kickPlayer(pid: $playerId) {
-            id
-          }
-        }
-      }
-    }
-    `, {lobbyId: getLobbyParam(), playerId: pid});
-    if (response.status === 200) {
-        let kickId = response.data.bingo.mutateLobby.kickPlayer.id;
-        document.querySelector(`.playerEntryContainer[b-pid='${kickId}'`).remove();
-    } else {
-        showError('Failed to kick player!');
-        console.error(response);
-    }
+    await BingoGraphqlHelper.kickPlayer(pid);
 }
 
 /**
@@ -197,11 +309,12 @@ async function executeCommand(message) {
     function reply(content) {
         addChatMessage({content: content, htmlContent: content, type: 'INFO'});
     }
+
     let jsStyle = document.querySelector('#js-style');
     message = message.replace(/\s+$/g, '');
     let command = /(\/\w+) ?(.*)?/g.exec(message);
     if (command && command.length >= 2) {
-        switch(command[1]) {
+        switch (command[1]) {
             case '/help':
                 reply(`
             <br><b>Commands: </b><br>
@@ -228,7 +341,7 @@ async function executeCommand(message) {
                 break;
             case '/username':
                 if (command[2]) {
-                    let uname = await setUsername(command[2]);
+                    let uname = await BingoGraphqlHelper.setUsername(command[2]);
                     reply(`Your username is <b>${uname}</b> now.`);
                 } else {
                     reply('You need to provide a username');
@@ -252,67 +365,11 @@ async function sendChatMessage() {
     if (messageInput.value && messageInput.value.length > 0) {
         let message = messageInput.value;
         messageInput.value = '';
-        if (/^\/\.*/g.test(message)) {
-            await executeCommand(message);
-        } else {
-            let response = await postGraphqlQuery(`
-        mutation($lobbyId:ID!, $message:String!){
-          bingo {
-            mutateLobby(id:$lobbyId) {
-              sendMessage(message:$message) {
-                id
-                htmlContent
-                type
-                author {
-                  username
-                }
-              }
-            }
-          }
-        }`, {message: message, lobbyId: getLobbyParam()});
-            if (response.status === 200) {
-                addChatMessage(response.data.bingo.mutateLobby.sendMessage);
-            } else {
-                messageInput.value = message;
-                console.error(response);
-                showError('Error when sending message.');
-            }
-        }
-    }
-}
 
-/**
- * Sets the words for the lobby
- * @param words
- * @param gridSize
- * @returns {Promise<LobbyWrapper.words|*|properties.words|{default, type}|boolean>}
- */
-async function setLobbySettings(words, gridSize) {
-    gridSize = Number(gridSize);
-    let response = await postGraphqlQuery(`
-    mutation ($lobbyId: ID!, $words: [String!]!, $gridSize:Int!) {
-      bingo {
-        mutateLobby(id: $lobbyId) {
-          setWords(words: $words) {
-            words {
-              content
-            }
-          }
-          setGridSize(gridSize: $gridSize) {
-            gridSize
-          }
-        }
-      }
-    }
-    `, {lobbyId: getLobbyParam(), words: words, gridSize: gridSize});
-    if (response.status === 200) {
-        return response.data.bingo.mutateLobby.setWords.words;
-    } else {
-        console.error(response);
-        if (response.errors)
-            showError(response.errors[0].message);
+        if (/^\/\.*/g.test(message))
+            await executeCommand(message);
         else
-            showError('Error when submitting lobby settings.');
+            socket.emit('message', message);
     }
 }
 
@@ -325,7 +382,7 @@ async function startRound() {
     let words = getLobbyWords();
     if (words.length > 0) {
         let gridSize = document.querySelector('#input-grid-size').value || 3;
-        let resultWords = await setLobbySettings(words, gridSize);
+        let resultWords = await BingoGraphqlHelper.setLobbySettings(words, gridSize);
         if (resultWords) {
             textinput.value = resultWords.map(x => x.content).join('\n');
             let response = await postGraphqlQuery(`
@@ -391,8 +448,9 @@ async function submitFieldToggle(wordPanel) {
         wordPanel.setAttribute('b-sub', response.data.bingo.mutateLobby.toggleGridField.submitted);
         if (response.data.bingo.mutateLobby.toggleGridField.grid.bingo)
             document.querySelector('#container-bingo-button').setAttribute('class', '');
-        else
+         else
             document.querySelector('#container-bingo-button').setAttribute('class', 'hidden');
+
     } else {
         console.error(response);
         showError('Error when submitting field toggle');
@@ -502,47 +560,15 @@ async function statusWrap(func) {
             indicator.setAttribute('status', 'idle');
         }, 1000);
     } catch (err) {
-        showError(err? err.message : 'Unknown error');
+        showError(err ? err.message : 'Unknown error');
     }
 }
 
-/**
- * Loads information about the rounds winner and the round stats.
- * @returns {Promise<boolean>}
- */
-async function loadWinnerInfo() {
-    let response = await postGraphqlQuery(`
-    query($lobbyId:ID!) {
-      bingo {
-        lobby(id:$lobbyId) {
-          currentRound {
-            status
-            winner {
-              id
-              username
-            }
-            start
-            finish
-          }
-        }
-      }
-    }`, {lobbyId: getLobbyParam()});
-    if (response.status === 200) {
-        let roundInfo = response.data.bingo.lobby.currentRound;
-        if (roundInfo.winner)
-            displayWinner(roundInfo);
-        else
-            window.location.reload();
-    } else {
-        console.error(response);
-        showError('Failed to get round information');
-    }
-}
 
 /**
  * Adds a message to the chat
  * @param messageObject {Object} - the message object returned by graphql
- * @param player {Number} - the id of the player
+ * @param [player] {Number} - the id of the player
  */
 function addChatMessage(messageObject, player) {
     let msgSpan = document.createElement('span');
@@ -554,12 +580,14 @@ function addChatMessage(messageObject, player) {
         msgSpan.innerHTML = `
         <span class="chatUsername">${messageObject.author.username}:</span>
         <span class="chatMessageContent">${messageObject.htmlContent}</span>`;
-    else
+     else
         msgSpan.innerHTML = `
         <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
 
+
     if (messageObject.author && messageObject.author.id !== player)
         spawnNotification(messageObject.content, messageObject.author.username);
+
     let chatContent = document.querySelector('#chat-content');
     chatContent.appendChild(msgSpan);
     chatContent.scrollTop = chatContent.scrollHeight;       // auto-scroll to bottom
@@ -577,231 +605,121 @@ function addPlayer(player, options) {
 
     if (options.isAdmin && player.id !== options.admin)
         playerContainer.innerHTML = `<button class="kickPlayerButton" onclick="kickPlayer(${player.id})">⨯</button>`;
+
     playerContainer.innerHTML += `<span class="playernameSpan">${player.username}</span>`;
 
     if (player.id === options.admin)
         playerContainer.innerHTML += "<span class='adminSpan'> 👑</span>";
+
     document.querySelector('#player-list').appendChild(playerContainer);
 }
 
 /**
- * Refreshes the bingo chat
- * @returns {Promise<void>}
+ * Returns the current player id
+ * @returns {Promise<*>}
  */
-async function refreshChat() {
-    try {
-        let response = await postGraphqlQuery(`
-        query($lobbyId:ID!){
-          bingo {
-            player {
-                id
-            }
-            lobby(id:$lobbyId) {
-              messages {
-                id
-                type
-                htmlContent
-                content
-                author {
-                  id
-                  username
-                }
-              }
-            }
-          }
-        }`, {lobbyId: getLobbyParam()});
-        if (response.status === 200) {
-            let messages = response.data.bingo.lobby.messages;
-            for (let message of messages)
-                if (!document.querySelector(`.chatMessage[msg-id="${message.id}"]`))
-                    addChatMessage(message, response.data.bingo.player.id);
-        } else {
-            showError('Failed to refresh messages');
-            console.error(response);
+async function getPlayerInfo() {
+    let result = await postGraphqlQuery(`
+    query ($lobbyId:ID!) {
+      bingo {
+        player {
+          id
+          username
         }
-    } catch (err) {
-        showError('Failed to refresh messages');
-        console.error(err);
+        lobby(id:$lobbyId) {
+          id
+          admin {
+            id
+          }
+        }
+      }
+    }`, {lobbyId: getLobbyParam()});
+    if (result.status === 200) {
+        let bingoData = result.data.bingo;
+        return {
+            id: bingoData.player.id,
+            username: bingoData.player.username,
+            isAdmin: bingoData.lobby.admin.id === bingoData.player.id
+        };
+    } else {
+        showError('Failed to fetch player Id');
+        console.error(result);
     }
 }
 
 /**
- * Refreshes the player list
- * @returns {Promise<void>}
+ * Initializes all socket events
+ * @param data
  */
-async function refreshPlayers() {
-    try {
-        let response = await postGraphqlQuery(`
-        query ($lobbyId: ID!) {
-          bingo {
-            player {
-              id
-            }
-            lobby(id: $lobbyId) {
-              players {
-                id
-                username
-                wins(lobbyId: $lobbyId)
-              }
-              admin {
-                id
-              }
-            }
-          }
+function initSocketEvents(data) {
+    let playerId = data.id;
+    let indicator = document.querySelector('#status-indicator');
+    indicator.setAttribute('status', 'error');
+
+    socket.on('connect', () => {
+        indicator.setAttribute('socket-status', 'connected');
+    });
+
+    socket.on('reconnect', () => {
+        indicator.setAttribute('socket-status', 'connected');
+    });
+
+    socket.on('disconnect', () => {
+        indicator.setAttribute('socket-status', 'disconnected');
+        showError('Disconnected from socket!');
+    });
+
+    socket.on('reconnecting', () => {
+        indicator.setAttribute('socket-status', 'reconnecting');
+    });
+
+    socket.on('error', (error) => {
+        showError(`Socket Error: ${JSON.stringify(error)}`);
+    });
+
+    socket.on('message', (msg) => {
+        console.log(msg);
+        addChatMessage(msg, playerId);
+    });
+
+    socket.on('statusChange', (status) => {
+        console.log(`Status changed to ${status}`);
+        if (status === 'FINISHED')
+            BingoGraphqlHelper.loadWinnerInfo();
+        else
+            window.location.reload();
+    });
+
+    socket.on('playerJoin', (playerObject) => {
+        addPlayer(playerObject, data);
+    });
+
+    socket.on('playerLeave', (playerId) => {
+        document.querySelector(`.playerEntryContainer[b-pid='${playerId}']`).remove();
+    });
+
+    socket.on('usernameChange', (playerObject) => {
+        console.log(playerObject);
+        document.querySelector(`.playerEntryContainer[b-pid='${playerObject.id}'] .playerNameSpan`).innerText = playerObject.username;
+    });
+
+    socket.on('wordsChange', async () => {
+        try {
+            await BingoGraphqlHelper.loadLobbyWords();
+        } catch (err) {
+            showError('Failed to load new lobby words.');
         }
-        `, {lobbyId: getLobbyParam()});
-        if (response.status === 200) {
-            let players = response.data.bingo.lobby.players;
-            let adminId = response.data.bingo.lobby.admin.id;
-            let isAdmin = response.data.bingo.player.id === adminId;
-            for (let player of players)
-                if (!document.querySelector(`.playerEntryContainer[b-pid="${player.id}"]`))
-                    addPlayer(player, {admin: adminId, isAdmin: isAdmin});
-        } else {
-            showError('Failed to refresh players');
-            console.error(response);
-        }
-    } catch (err) {
-        showError('Failed to refresh players');
-        console.error(err);
-    }
+    });
 }
 
 /**
- * Removes players that are not existent in the player array
- * @param players {Array<Object>} - player id response of graphql
+ * Initializes the lobby refresh with sockets or graphql
  */
-function removeLeftPlayers(players) {
-    for (let playerEntry of document.querySelectorAll('.playerEntryContainer'))
-        if (!players.find(x => (x.id === playerEntry.getAttribute('b-pid'))))
-            playerEntry.remove();
-}
-
-/**
- * Refreshes if a player-refresh is needed.
- * Removes players that are not in the lobby anyomre.
- * @param players
- */
-function checkPlayerRefresh(players) {
-    let playerRefresh = false;
-    removeLeftPlayers(players);
-    for (let player of players)
-        if (!document.querySelector(`.playerEntryContainer[b-pid="${player.id}"]`))
-            playerRefresh = true;
-    if (playerRefresh)
-        statusWrap(refreshPlayers);
-}
-
-/**
- * Checks if messages need to be refreshed and does it if it needs to.
- * @param messages
- */
-function checkMessageRefresh(messages) {
-    let messageRefresh = false;
-    for (let message of messages)
-        if (!document.querySelector(`.chatMessage[msg-id="${message.id}"]`))
-            messageRefresh = true;
-    if (messageRefresh)
-        statusWrap(refreshChat);
-}
-
-/**
- * refreshes the lobby and calls itself with a timeout
- * @returns {Promise<void>}
- */
-async function refreshLobby() {
-    try {
-        let response = await postGraphqlQuery(`
-        query($lobbyId:ID!){
-          bingo {
-            lobby(id:$lobbyId) {
-              players {
-                id
-              }
-              messages {
-                id
-              }
-              currentRound {
-                id
-                status
-              }
-              words {
-                content
-              }
-            }
-          }
-        }`, {lobbyId: getLobbyParam()});
-        if (response.status === 200) {
-            let {players, messages, currentRound} = response.data.bingo.lobby;
-            checkPlayerRefresh(players);
-            checkMessageRefresh(messages);
-            let wordContainer = document.querySelector('#bingo-words');
-
-            if (wordContainer)
-                wordContainer.innerHTML = `<span class="bingoWord">
-                ${response.data.bingo.lobby.words.map(x => x.content).join('</span><span class="bingoWord">')}</span>`;
-
-            if (currentRound && currentRound.status === 'ACTIVE' && Number(currentRound.id) !== Number(getRoundParam())) {
-                insertParam('r', currentRound.id);
-                spawnNotification('The round started!', 'Bingo');
-            }
-
-        } else {
-            showError('Failed to refresh lobby');
-            console.error(response);
-        }
-    } catch (err) {
-        showError('Failed to refresh lobby');
-        console.error(err);
-    } finally {
-        setTimeout(refreshLobby, 1000);
-    }
-}
-
-/**
- * Checks the status of the lobby and the current round.
- * @returns {Promise<void>}
- */
-async function refreshRound() {
-    let roundOver = false;
-    try {
-        let response = await postGraphqlQuery(`
-        query($lobbyId:ID!) {
-          bingo {
-            lobby(id:$lobbyId) {
-              players {
-                id
-              }
-              messages {
-                id
-              }
-              currentRound {
-                id
-                status
-              }
-            }
-          }
-        }`, {lobbyId: getLobbyParam()});
-        if (response.status === 200) {
-            let {players, messages, currentRound} = response.data.bingo.lobby;
-
-            checkPlayerRefresh(players);
-            checkMessageRefresh(messages);
-            if (!currentRound || currentRound.status === "FINISHED") {
-                roundOver = true;
-                await loadWinnerInfo();
-            }
-        } else {
-            showError('Failed to refresh round');
-            console.error(response);
-        }
-    } catch (err) {
-        showError('Failed to refresh round');
-        console.error(err);
-    } finally {
-        if (!roundOver)
-            setTimeout(refreshRound, 1000);
-    }
+function initRefresh() {
+    getPlayerInfo().then((data) => {
+        socket = new SimpleSocket(`/bingo/${getLobbyParam()}`, {playerId: data.id});
+        initSocketEvents(data);
+    });
 }
 
 window.addEventListener("unhandledrejection", function (promiseRejectionEvent) {
@@ -815,7 +733,7 @@ window.addEventListener("keydown", async (e) => {
         e.preventDefault();
         if (document.querySelector('#input-bingo-words')) {
             let gridSize = document.querySelector('#input-grid-size').value || 3;
-            await statusWrap(async () => await setLobbySettings(getLobbyWords(), gridSize));
+            await statusWrap(async () => await BingoGraphqlHelper.setLobbySettings(getLobbyWords(), gridSize));
         }
     }
 }, false);
@@ -830,3 +748,5 @@ window.onload = async () => {
             }
         }
 };
+
+let socket = null;

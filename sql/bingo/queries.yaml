@@ -77,6 +77,9 @@ getPlayerInLobby:
 getLobbyPlayers:
   sql: SELECT * FROM bingo.lobby_players WHERE lobby_players.lobby_id = $1;
 
+getLobbyIds:
+  sql: SELECT lobbys.id FROM bingo.lobbys;
+
 # returns all direct information about the lobby
 # params:
 # - {Number} - the id of the lobby

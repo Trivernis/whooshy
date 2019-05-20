@@ -45,6 +45,21 @@
   animation-duration: 5s
   animation-iteration-count: infinite
 
+.socketStatusIndicator[socket-status='connected']
+  background-color: $success
+
+.socketStatusIndicator[socket-status='reconnecting']
+  background-color: mix($pending, $error)
+  animation-name: pulse-opacity
+  animation-duration: 5s
+  animation-iteration-count: infinite
+
+.socketStatusIndicator[socket-status='disconnected']
+  background-color: $error
+  animation-name: pulse-opacity
+  animation-duration: 2s
+  animation-iteration-count: infinite
+
 .pending
   background-color: $pending !important
   animation-name: pulse-opacity

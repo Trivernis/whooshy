@@ -1,6 +1,6 @@
 const createError = require('http-errors'),
-    express = require('express'),
     path = require('path'),
+    express = require('express'),
     cookieParser = require('cookie-parser'),
     logger = require('morgan'),
     compileSass = require('express-compile-sass'),
@@ -20,6 +20,9 @@ const createError = require('http-errors'),
     changelogRouter = require('./routes/changelog'),
     bingoRouter = require('./routes/bingo');
 
+let app = require('express')(),
+    server = require('http').Server(app),
+    io = require('socket.io')(server);
 
 async function init() {
     // grapql default resolver
@@ -36,9 +39,9 @@ async function init() {
     // database setup
     let pgPool = globals.pgPool;
     await pgPool.query(fsx.readFileSync('./sql/init.sql', 'utf-8'));
-    await bingoRouter.init();
 
-    let app = express();
+    let bingoIo = io.of('/bingo');
+    await bingoRouter.init(bingoIo, io);
 
     // view engine setup
     app.set('views', path.join(__dirname, 'views'));
@@ -98,7 +101,7 @@ async function init() {
         res.status(err.status || 500);
         res.render('error');
     });
-    return app;
+    return [app, server];
 }
 
 module.exports = init;
