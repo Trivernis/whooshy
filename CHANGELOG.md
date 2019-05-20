@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - socket.io for real time communication
+- compression and minify
 
 ## Changed
 
 - frontend to use socket.io instead of graphql for refreshing
+- use of socket.io for toggeling binogo fields
 
 ### Removed
 

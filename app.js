@@ -4,6 +4,9 @@ const createError = require('http-errors'),
     cookieParser = require('cookie-parser'),
     logger = require('morgan'),
     compileSass = require('express-compile-sass'),
+    minify = require('express-minify'),
+    compression = require('compression'),
+    uglifyEs = require('uglify-es'),
     session = require('express-session'),
     pgSession = require('connect-pg-simple')(session),
     fsx = require('fs-extra'),
@@ -48,6 +51,10 @@ async function init() {
     app.set('view engine', 'pug');
     app.set('trust proxy', 1);
 
+    app.use(compression());
+    app.use(minify({
+        uglifyJsModule: uglifyEs
+    }));
     app.use(logger('dev'));
     app.use(express.json());
     app.use(express.urlencoded({extended: false}));

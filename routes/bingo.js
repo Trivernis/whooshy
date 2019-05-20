@@ -891,7 +891,7 @@ class RoundWrapper {
             let updateResult = await bdm.setRoundWinner(this.id, winnerId);
             if (updateResult)
                 await this.setFinished();
-            (await this.lobby()).socket.emit('statusChange', 'FINISHED');
+            (await this.lobby()).socket.emit('statusChange', 'FINISHED', await resolvePlayer(new PlayerWrapper(winnerId)));
             return true;
         }
     }
@@ -1457,6 +1457,20 @@ async function resolvePlayer(playerWrapper, lobbyId) {
 }
 
 /**
+ * Resolves a fieldWrapper object
+ * @param fieldWrapper
+ * @returns {Promise<{submitted: (Object.submitted|*), column: *, bingo: boolean, row: (Object.grid_row|number|*)}>}
+ */
+async function resolveGridField(fieldWrapper) {
+    return {
+        row: fieldWrapper.row,
+        column: fieldWrapper.column,
+        submitted: fieldWrapper.submitted,
+        bingo: await fieldWrapper.grid.bingo()
+    };
+}
+
+/**
  * Returns resolved message data.
  * @param lobbyId
  * @returns {Promise<Array>}
@@ -1492,6 +1506,12 @@ function createSocketIfNotExist(io, lobbyId) {
                 } catch (err) {
                     console.log(err);
                 }
+            });
+            socket.on('fieldToggle', async (context, location) => {
+                let {row, column} = location;
+                let result = await (await (new PlayerWrapper(context.playerId)).grid({lobbyId: lobbyId}))
+                    .toggleField(row, column);
+                socket.emit('fieldChange', await resolveGridField(result));
             });
         });
     }

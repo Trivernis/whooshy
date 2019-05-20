@@ -378,9 +378,11 @@ async function sendChatMessage() {
  * @returns {Promise<boolean>}
  */
 async function startRound() {
+    let roundStart = document.querySelector('#button-round-start');
     let textinput = document.querySelector('#input-bingo-words');
     let words = getLobbyWords();
     if (words.length > 0) {
+        roundStart.setAttribute('class', 'pending');
         let gridSize = document.querySelector('#input-grid-size').value || 3;
         let resultWords = await BingoGraphqlHelper.setLobbySettings(words, gridSize);
         if (resultWords) {
@@ -402,6 +404,7 @@ async function startRound() {
                 console.error(response);
                 showError('Error when starting round.');
             }
+            roundStart.setAttribute('class', '');
         }
     } else {
         throw new Error('No words provided.');
@@ -429,32 +432,8 @@ async function submitFieldToggle(wordPanel) {
     let column = Number(wordPanel.getAttribute('b-column'));
     let wordClass = wordPanel.getAttribute('class');
     wordPanel.setAttribute('class', wordClass + ' pending');
-    let response = await postGraphqlQuery(`
-    mutation($lobbyId:ID!, $row:Int!, $column:Int!){
-      bingo {
-        mutateLobby(id:$lobbyId) {
-          toggleGridField(location:{row:$row, column:$column}) {
-            submitted
-            grid {
-              bingo
-            }
-          }
-        }
-      }
-    }`, {lobbyId: getLobbyParam(), row: row, column: column});
-    wordPanel.setAttribute('class', wordClass);
 
-    if (response.status === 200) {
-        wordPanel.setAttribute('b-sub', response.data.bingo.mutateLobby.toggleGridField.submitted);
-        if (response.data.bingo.mutateLobby.toggleGridField.grid.bingo)
-            document.querySelector('#container-bingo-button').setAttribute('class', '');
-         else
-            document.querySelector('#container-bingo-button').setAttribute('class', 'hidden');
-
-    } else {
-        console.error(response);
-        showError('Error when submitting field toggle');
-    }
+    socket.emit('fieldToggle', {row: row, column: column});
 }
 
 /**
@@ -483,7 +462,7 @@ async function setRoundFinished() {
 
 /**
  * Submits bingo
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>}
  */
 async function submitBingo() {
     let response = await postGraphqlQuery(`
@@ -504,8 +483,7 @@ async function submitBingo() {
     }`, {lobbyId: getLobbyParam()});
 
     if (response.status === 200 && response.data.bingo.mutateLobby.submitBingo) {
-        let round = response.data.bingo.mutateLobby.submitBingo;
-        displayWinner(round);
+        return true;
     } else {
         console.error(response);
         showError('Failed to submit bingo');
@@ -514,10 +492,10 @@ async function submitBingo() {
 
 /**
  * Displays the winner of the game in a popup.
- * @param roundInfo {Object} - the round object as returned by graphql
+ * @param winner {Object} - the round object as returned by graphql
  */
-function displayWinner(roundInfo) {
-    let name = roundInfo.winner.username;
+function displayWinner(winner) {
+    let name = winner.username;
     let winnerDiv = document.createElement('div');
     let greyoverDiv = document.createElement('div');
     winnerDiv.setAttribute('class', 'popup');
@@ -585,7 +563,7 @@ function addChatMessage(messageObject, player) {
         <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
 
 
-    if (messageObject.author && messageObject.author.id !== player)
+    if (messageObject.type === 'USER' && messageObject.author && messageObject.author.id !== player)
         spawnNotification(messageObject.content, messageObject.author.username);
 
     let chatContent = document.querySelector('#chat-content');
@@ -678,16 +656,16 @@ function initSocketEvents(data) {
     });
 
     socket.on('message', (msg) => {
-        console.log(msg);
         addChatMessage(msg, playerId);
     });
 
-    socket.on('statusChange', (status) => {
-        console.log(`Status changed to ${status}`);
-        if (status === 'FINISHED')
-            BingoGraphqlHelper.loadWinnerInfo();
-        else
+    socket.on('statusChange', (status, winner) => {
+        if (status === 'FINISHED') {
+            if (document.querySelector('#container-bingo-round'))
+                displayWinner(winner);
+        } else {
             window.location.reload();
+        }
     });
 
     socket.on('playerJoin', (playerObject) => {
@@ -699,7 +677,6 @@ function initSocketEvents(data) {
     });
 
     socket.on('usernameChange', (playerObject) => {
-        console.log(playerObject);
         document.querySelector(`.playerEntryContainer[b-pid='${playerObject.id}'] .playerNameSpan`).innerText = playerObject.username;
     });
 
@@ -709,6 +686,16 @@ function initSocketEvents(data) {
         } catch (err) {
             showError('Failed to load new lobby words.');
         }
+    });
+
+    socket.on('fieldChange', (field) => {
+        let wordPanel = document.querySelector(`.bingoWordPanel[b-row='${field.row}'][b-column='${field.column}']`);
+        wordPanel.setAttribute('b-sub', field.submitted);
+        wordPanel.setAttribute('class', 'bingoWordPanel');
+        if (field.bingo)
+            document.querySelector('#container-bingo-button').setAttribute('class', '');
+        else
+            document.querySelector('#container-bingo-button').setAttribute('class', 'hidden');
     });
 }
 
@@ -747,6 +734,8 @@ window.onload = async () => {
                 showError(err.message);
             }
         }
+    let chatContent = document.querySelector('#chat-content');
+    chatContent.scrollTop = chatContent.scrollHeight;
 };
 
 let socket = null;
