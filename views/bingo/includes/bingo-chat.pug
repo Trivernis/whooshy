@@ -2,7 +2,7 @@ div(id='container-chat')
     style(id='js-style')
     div(id='chat-content')
         for message in messages
-            span.chatMessage(type=message.type msg-id=message.id)
+            span.chatMessage(msg-type=message.type msg-id=message.id)
                 if message.type === 'USER'
                     span.chatUsername= `${message.username}: `
                 span(class=`chatMessageContent ${message.type}`)!= message.htmlContent
