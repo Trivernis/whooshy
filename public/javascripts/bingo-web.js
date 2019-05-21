@@ -45,12 +45,12 @@ function spawnNotification(body, title) {
  */
 async function submitUsername() {
     let unameInput = document.querySelector('#input-username');
-    let username = unameInput.value.replace(/^\s+|\s+$/g, '');
+    let username = unameInput.value;
 
-    if (username.length > 1) {
+    if (username.length > 1 && username.length <= 30) {
         return await setUsername(username);
     } else {
-        showError('You need to provide a username (minimum 2 characters)!');
+        showError('You need to provide a username (min. 2 characters, max. 30)!');
         return false;
     }
 }
@@ -61,7 +61,8 @@ async function submitUsername() {
  * @returns {Promise<boolean>}
  */
 async function setUsername(username) {
-    let uname = username.substring(0, 30).replace(/[^\w- ;[\]]/g, '');
+    username = username.replace(/^\s+|\s+$/g, '');
+    let uname = username.replace(/[\n\t👑🌟]|^\s+|\s+$/gu, '');
     if (uname.length === username.length) {
         let response = await postGraphqlQuery(`
         mutation($username:String!) {
@@ -83,7 +84,7 @@ async function setUsername(username) {
             return false;
         }
     } else {
-        showError('Your username contains illegal characters.');
+        showError(`Your username contains illegal characters (${username.replace(uname, '')}).`);
     }
 }
 
@@ -548,11 +549,12 @@ function addChatMessage(messageObject, player) {
     msgSpan.setAttribute('class', 'chatMessage');
     msgSpan.setAttribute('msg-type', messageObject.type);
     msgSpan.setAttribute('msg-id', messageObject.id);
+
     if (messageObject.type === "USER")
         msgSpan.innerHTML = `
         <span class="chatUsername">${messageObject.author.username}:</span>
         <span class="chatMessageContent">${messageObject.htmlContent}</span>`;
-     else
+    else
         msgSpan.innerHTML = `
         <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
 
@@ -621,7 +623,6 @@ async function refreshChat() {
         showError('Failed to refresh messages');
         console.error(err);
     }
-    console.log('Refresh Chat');
 }
 
 /**

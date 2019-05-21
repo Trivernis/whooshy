@@ -1496,7 +1496,7 @@ router.graphqlResolver = async (req, res) => {
         },
         // mutations
         setUsername: async ({username}) => {
-            username = replaceTagSigns(username.substring(0, 30)).replace(/[^\w- ;[\]]/g, ''); // only allow 30 characters
+            username = replaceTagSigns(username.substring(0, 30)).replace(/[\n\t👑🌟]|^\s+|\s+$/gu, ''); // only allow 30 characters
             if (username.length > 0) {
                 let playerWrapper = new PlayerWrapper(playerId);
 

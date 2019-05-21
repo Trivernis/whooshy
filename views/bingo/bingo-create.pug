@@ -7,6 +7,7 @@ block content
                 type='text'
                 placeholder='Enter your name'
                 value=username
+                maxlength=30
                 onkeydown='submitOnEnter(event, () => indicateStatus(submitUsername, "#username-status"))')
             button(
                 id='submit-username'
