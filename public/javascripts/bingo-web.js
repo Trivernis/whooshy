@@ -203,6 +203,47 @@ class BingoGraphqlHelper {
                 showError('Error when submitting lobby settings.');
         }
     }
+
+    /**
+     * Refreshes the bingo chat
+     * @returns {Promise<void>}
+     */
+    static async refreshChat() {
+        try {
+            let response = await postGraphqlQuery(`
+            query($lobbyId:ID!){
+              bingo {
+                player {
+                    id
+                }
+                lobby(id:$lobbyId) {
+                  messages {
+                    id
+                    type
+                    htmlContent
+                    content
+                    author {
+                      id
+                      username
+                    }
+                  }
+                }
+              }
+            }`, {lobbyId: getLobbyParam()});
+            if (response.status === 200) {
+                let messages = response.data.bingo.lobby.messages;
+                for (let message of messages)
+                    if (!document.querySelector(`.chatMessage[msg-id="${message.id}"]`))
+                        addChatMessage(message, response.data.bingo.player.id);
+            } else {
+                showError('Failed to refresh messages');
+                console.error(response);
+            }
+        } catch (err) {
+            showError('Failed to refresh messages');
+            console.error(err);
+        }
+    }
 }
 
 /**
@@ -638,8 +679,9 @@ function initSocketEvents(data) {
         indicator.setAttribute('socket-status', 'connected');
     });
 
-    socket.on('reconnect', () => {
+    socket.on('reconnect', async () => {
         indicator.setAttribute('socket-status', 'connected');
+        await BingoGraphqlHelper.refreshChat();
     });
 
     socket.on('disconnect', () => {
@@ -707,6 +749,8 @@ function initRefresh() {
         socket = new SimpleSocket(`/bingo/${getLobbyParam()}`, {playerId: data.id});
         initSocketEvents(data);
     });
+    let chatContent = document.querySelector('#chat-content');
+    chatContent.scrollTop = chatContent.scrollHeight;
 }
 
 window.addEventListener("unhandledrejection", function (promiseRejectionEvent) {
@@ -717,8 +761,8 @@ window.addEventListener("unhandledrejection", function (promiseRejectionEvent) {
 // prevent ctrl + s
 window.addEventListener("keydown", async (e) => {
     if (e.which === 83 && (navigator.platform.match("Mac") ? e.metaKey : e.ctrlKey)) {
-        e.preventDefault();
         if (document.querySelector('#input-bingo-words')) {
+            e.preventDefault();
             let gridSize = document.querySelector('#input-grid-size').value || 3;
             await statusWrap(async () => await BingoGraphqlHelper.setLobbySettings(getLobbyWords(), gridSize));
         }
@@ -734,8 +778,6 @@ window.onload = async () => {
                 showError(err.message);
             }
         }
-    let chatContent = document.querySelector('#chat-content');
-    chatContent.scrollTop = chatContent.scrollHeight;
 };
 
 let socket = null;

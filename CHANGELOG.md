@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - graphql frontend functions to send messages and refresh
 
+### Fixed
+
+- Socket reconnect doesn't load old messages (#20)
+- error message on create ui load
+
 ## [0.1.0] - 2019-05-19
 
 ### Added
