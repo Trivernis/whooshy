@@ -610,6 +610,10 @@ function addChatMessage(messageObject, player) {
     let chatContent = document.querySelector('#chat-content');
     chatContent.appendChild(msgSpan);
     chatContent.scrollTop = chatContent.scrollHeight;       // auto-scroll to bottom
+
+    msgSpan.querySelector('img').onload = () => {
+        chatContent.scrollTop = chatContent.scrollHeight;
+    };
 }
 
 /**

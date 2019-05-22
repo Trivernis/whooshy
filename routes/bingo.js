@@ -678,7 +678,7 @@ class MessageWrapper {
     constructor(row) {
         this.id = row.id;
         this.content = row.content;
-        this.htmlContent = md.renderInline(this.content);
+        this.htmlContent = md.renderInline(preMarkdownParse(this.content));
         this.author = new PlayerWrapper(row.player_id);
         this.lobby = new LobbyWrapper(row.lobby_id);
         this.type = row.type;
@@ -1367,6 +1367,30 @@ function checkBingo(fg) {
     let verticalCheck = checkBingoVertical(fg);
     let horizontalCheck = checkBingoHorizontal(fg);
     return diagonalBingo || verticalCheck || horizontalCheck;
+}
+
+/**
+ * Parses the message and replaces all links with markdown-links and images with markdown-images.
+ * @param message {String} - the raw message
+ */
+function preMarkdownParse(message) {
+    let linkMatch = /https?:\/\/((([\w-]+\.)+[\w-]+)(\S*))/g;
+    let imageMatch = /.*\.(\w+)/g;
+    let imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg'];
+    let links = message.match(linkMatch);
+
+    if (links)
+        for (let link of links) {
+            let linkGroups = linkMatch.exec(link);
+            let imgGroups = imageMatch.exec(link);
+
+            if (imgGroups && imgGroups[1] && imageExtensions.includes(imgGroups[1]))
+                message = message.replace(link, `![${linkGroups[1]}](${link})`);
+            else
+                message = message.replace(link, `[${linkGroups[1]}](${link})`);
+        }
+
+    return message;
 }
 
 /**

@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - socket.io for real time communication
 - compression and minify
+- auto replacing image links with images in the chat
+- auto replacing urls to urls with link in the chat
 
 ## Changed
 
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Socket reconnect doesn't load old messages (#20)
 - error message on create ui load
+- chat doesn't scroll down when an image is send
 
 ## [0.1.1] - 2019-05-21
 
