@@ -702,7 +702,7 @@ function initSocketEvents(data) {
     });
 
     socket.on('statusChange', (status, winner) => {
-        if (status === 'FINISHED') {
+        if (status === 'FINISHED' && winner) {
             if (document.querySelector('#container-bingo-round'))
                 displayWinner(winner);
         } else {
