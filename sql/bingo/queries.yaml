@@ -48,7 +48,7 @@ addLobby:
 # params:
 # - {Number} - the id of the lobby
 updateLobbyExpire:
-  sql: UPDATE bingo.lobbys SET expire = (NOW() + interval '1 hours') WHERE id = $1;
+  sql: UPDATE bingo.lobbys SET expire = (NOW() + interval '4 hours') WHERE id = $1 RETURNING *;
 
 # inserts a player into a lobby
 # params:
@@ -76,6 +76,9 @@ getPlayerInLobby:
 # - {Number} - the id of the lobby
 getLobbyPlayers:
   sql: SELECT * FROM bingo.lobby_players WHERE lobby_players.lobby_id = $1;
+
+getLobbyIds:
+  sql: SELECT lobbys.id FROM bingo.lobbys;
 
 # returns all direct information about the lobby
 # params:

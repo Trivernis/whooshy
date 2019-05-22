@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- socket.io for real time communication
+- compression and minify
+
+## Changed
+
+- frontend to use socket.io instead of graphql for refreshing
+- use of socket.io for toggeling binogo fields
+
+### Removed
+
+- graphql frontend functions to send messages and refresh
+
+### Fixed
+
+- Socket reconnect doesn't load old messages (#20)
+- error message on create ui load
+
 ## [0.1.1] - 2019-05-21
 
 ### Fixed
