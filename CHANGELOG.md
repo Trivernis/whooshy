@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Socket reconnect doesn't load old messages (#20)
 - error message on create ui load
 
+## [0.1.1] - 2019-05-21
+
+### Fixed
+- preloaded info messages can't be hidden (#18)
+- no special character allowed in username (#19)
+
 ## [0.1.0] - 2019-05-19
 
 ### Added
