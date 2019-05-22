@@ -1386,7 +1386,7 @@ function preMarkdownParse(message) {
 
             if (imgGroups && imgGroups[1] && imageExtensions.includes(imgGroups[1]))
                 message = message.replace(link, `![${linkGroups[1]}](${link})`);
-            else
+            else if (linkGroups && linkGroups[1])
                 message = message.replace(link, `[${linkGroups[1]}](${link})`);
         }
 
