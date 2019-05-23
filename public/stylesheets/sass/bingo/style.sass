@@ -1,31 +1,46 @@
 @import ../mixins
 @import ../vars
 
-//@media(max-device-width: 641px)
+@media(max-device-height: 500px)
+  div#container-winner
+    margin: 5% auto !important
+
+@media(max-device-width: 600px)
+  div#container-bingo-lobby
+    grid-template: 0 10% 85% 5% / 0 0 0 100% 0 !important
+
+    div#container-lobby-settings
+      display: none !important
+
+    div#container-players
+      display: none !important
+
 
 //@media(min-device-width: 641px)
 
 .popup
-  @include default-element
   position: fixed
-  display: grid
-  height: calc(50% - 1rem)
-  width: calc(40% - 1rem)
-  top: 25%
-  left: 30%
-  text-align: center
-  vertical-align: middle
-  padding: 1rem
+  top: 0
+  left: 0
+  height: 100%
+  width: 100%
   z-index: 1000
-  grid-template: 60% 40% / 100%
 
-  h1
-    @include gridPosition(1, 2, 1, 1)
 
-  button
-    margin: 1rem
-    font-size: 2rem
-    @include  gridPosition(2, 3, 1, 1)
+  #container-winner
+    @include default-element
+    position: relative
+    margin: 20% auto
+    text-align: center
+    width: 50%
+
+    h1
+      @include gridPosition(1, 2, 1, 1)
+
+    button
+      margin: 1rem
+      font-size: 2rem
+      @include  gridPosition(2, 3, 1, 1)
 
 .greyover
   width: 100%
@@ -74,8 +89,12 @@
     height: auto
     border-radius: 0.2em
 
+.chatMessage.selected
+  background-color: lighten($primary, 15%)
+
 #container-chat
   height: calc(100% - 2px)
+  position: relative
   #chat-content
     height: calc(100% - 3rem)
     width: calc(100% - 2px)
@@ -222,29 +241,55 @@
 
 #container-bingo-create
   display: grid
-  grid-template: 5% 10% 10% 70% 5% /10% 80% 10%
+  grid-template: 5% 45% 45% 5% /5% 35% 5% 50% 5%
   height: 100%
   width: 100%
 
   #username-form
     @include gridPosition(2, 3, 2, 3)
     margin: auto
+    position: relative
 
-    .statusIndicator
-      height: 1em
-      width: 1em
-      display: inline-block
-      margin: auto 1em
+    h2
+      text-align: center
+      margin: 0 0 1rem 0
 
-    #input-username
-      margin: 0 0 0 3em
+    > *
+      margin: auto
+      width: 100%
+
+
+    #submit-username[status='success']
+        background-color: $success
+        transition-duration: 1s
+
+    #submit-username[status='pending']
+        transition-duration: 1s
+        background-color: $pending
+        animation-name: pulse-opacity
+        animation-duration: 4s
+        animation-iteration-count: infinite
 
   #lobby-form
-    @include gridPosition(3, 5, 2, 3)
-    margin: 10% auto
+    @include gridPosition(3, 4, 2, 3)
+    margin: auto
+    width: 100%
 
     button
       width: 100%
+      margin: auto
+
+    button.inactive
+      background-color: lighten($primary, 10%)
+
+  #changelog
+    @include gridPosition(2, 4, 4, 5)
+    height: 100%
+    width: calc(100% - 2rem)
+    overflow-y: auto
+    margin: 0 0.5rem
+    padding: 0 0.5rem
+    box-shadow: inset 0 0 1rem darken($primary, 10%)
 
 #container-bingo-lobby
   @include fillWindow
@@ -256,7 +301,7 @@
 
   #lobby-title
     @include gridPosition(2, 3, 2, 5)
-    margin: auto
+    margin: 0.5rem auto
 
   #container-players
     @include gridPosition(3, 4, 2, 3)

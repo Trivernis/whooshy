@@ -2,7 +2,12 @@ div(id='container-chat')
     style(id='js-style')
     div(id='chat-content')
         for message in messages
-            span.chatMessage(msg-type=message.type msg-id=message.id)
+            span.chatMessage(
+                msg-type=message.type
+                msg-id=message.id
+                msg-pid=message.playerId
+                msg-raw=message.content)
+
                 if message.type === 'USER'
                     span.chatUsername= `${message.username}: `
                 span(class=`chatMessageContent ${message.type}`)!= message.htmlContent
@@ -10,6 +15,6 @@ div(id='container-chat')
         id='chat-input'
         type='text'
         placeholder='send message'
-        onkeypress='submitOnEnter(event, () => statusWrap(sendChatMessage))'
+        onkeypress='onInputKeypress(event)'
         maxlength="250"
         autocomplete='off')

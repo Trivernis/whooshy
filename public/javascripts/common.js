@@ -164,9 +164,15 @@ async function indicateStatus(func, indicatorSelector) {
             statusIndicator.setAttribute('status', 'success');
         else
             statusIndicator.setAttribute('status', 'error');
+        setTimeout(() => {
+            statusIndicator.setAttribute('status', '');
+        }, 1000);
     } catch (err) {
         console.error(err);
         statusIndicator.setAttribute('status', 'error');
+        setTimeout(() => {
+            statusIndicator.setAttribute('status', '');
+        }, 1000);
     }
 }
 

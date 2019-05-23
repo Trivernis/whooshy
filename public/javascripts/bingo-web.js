@@ -246,6 +246,95 @@ class BingoGraphqlHelper {
     }
 }
 
+class ChatInput {
+    constructor(element) {
+        this.element = element;
+        this.mode = 0;
+        this.user = 0;
+        this.editId = null;
+    }
+
+
+    /**
+     * Sends a message to the chat
+     * @returns {Promise<void>}
+     */
+    async sendChatMessage() {
+        if (this.element.value && this.element.value.length > 0) {
+            let message = this.element.value;
+            this.element.value = '';
+
+            if (this.mode === 0) {
+                if (/^\/\.*/g.test(message))
+                    await executeCommand(message);
+                else
+                    socket.emit('message', message);
+            } else {
+                    socket.emit('messageEdit', message, this.editId);
+                    this.setNormal();
+            }
+        } else if (this.mode === 1) {
+            socket.emit('messageDelete', this.editId);
+            this.setNormal();
+        }
+    }
+
+    /**
+     * Returns the last message
+     * @param [before] {Number} - last message before a specific id
+     * @param [after] {Number} - last message after a specific id
+     * @returns {Element|*}
+     * @private
+     */
+    _getMessage(before, after) {
+        let messages = [...document.querySelectorAll(`.chatMessage[msg-pid='${this.user}']`)];
+        let message = null;
+
+        if (before)
+            message = messages.filter(x => Number(x.getAttribute('msg-id') < before)).slice(-1);
+        else if (after)
+            message = messages.filter(x => Number(x.getAttribute('msg-id') > after));
+        else
+            message = messages.slice(-1);
+        if (message.length > 0)
+            return message[0];
+    }
+
+    setEdit(after) {
+        let message = null;
+        let lastMessage = document.querySelector(`.chatMessage[msg-id='${this.editId}']`);
+        if (this.mode === 0 && !after) {
+            this.mode = 1;
+            message = this._getMessage();
+        } else if (after && this.mode === 1) {
+            message = this._getMessage(null, this.editId);
+        } else if (this.mode === 1) {
+            message = this._getMessage(this.editId);
+        }
+        if (message) {
+            message.classList.add('selected');
+            if (lastMessage)
+                lastMessage.classList.remove('selected');
+
+            this.element.value = message.getAttribute('msg-raw');
+            this.editId = Number(message.getAttribute('msg-id'));
+        } else {
+            this.setNormal();
+        }
+    }
+
+    setNormal() {
+        if (this.mode !== 0) {
+            this.element.value = '';
+            this.mode = 0;
+            let lastMessage = document.querySelector(`.chatMessage[msg-id='${this.editId}']`);
+            if (lastMessage)
+                lastMessage.classList.remove('selected');
+            this.editId = null;
+        }
+    }
+}
+
 /**
  * Returns the value of the url-param 'g'
  * @returns {string}
@@ -398,23 +487,6 @@ async function executeCommand(message) {
 }
 
 /**
- * Sends a message to the chat
- * @returns {Promise<void>}
- */
-async function sendChatMessage() {
-    let messageInput = document.querySelector('#chat-input');
-    if (messageInput.value && messageInput.value.length > 0) {
-        let message = messageInput.value;
-        messageInput.value = '';
-
-        if (/^\/\.*/g.test(message))
-            await executeCommand(message);
-        else
-            socket.emit('message', message);
-    }
-}
-
-/**
  * Starts a new round of bingo
  * @returns {Promise<boolean>}
  */
@@ -531,18 +603,35 @@ async function submitBingo() {
     }
 }
 
+async function onInputKeypress(e) {
+    switch (e.which) {
+        case 13:
+            await chatInput.sendChatMessage();
+            break;
+        case 38:
+            chatInput.setEdit();
+            break;
+        case 27:
+            chatInput.setNormal();
+            break;
+        case 40:
+            chatInput.setEdit(true);
+    }
+}
+
 /**
  * Displays the winner of the game in a popup.
  * @param winner {Object} - the round object as returned by graphql
  */
-function displayWinner(winner) {
+function displayWinner(winner, isPlayer) {
     let name = winner.username;
     let winnerDiv = document.createElement('div');
     let greyoverDiv = document.createElement('div');
     winnerDiv.setAttribute('class', 'popup');
     winnerDiv.innerHTML = `
-        <h1>${name} has won!</h1>
-        <button id="button-lobbyreturn" onclick="window.location.reload()">Return to Lobby!</button>
+        <div id="container-winner"><h1>${name} has won!</h1>
+        <p>${isPlayer? 'Congratulations!':'And you lost. How does this make you feel?'}</p>
+        <button id="button-lobbyreturn" onclick="window.location.reload()">Return to Lobby!</button></div>
     `;
     greyoverDiv.setAttribute('class', 'greyover');
     document.body.append(greyoverDiv);
@@ -594,14 +683,16 @@ function addChatMessage(messageObject, player) {
     msgSpan.setAttribute('class', 'chatMessage');
     msgSpan.setAttribute('msg-type', messageObject.type);
     msgSpan.setAttribute('msg-id', messageObject.id);
+    msgSpan.setAttribute('msg-raw', messageObject.content);
 
-    if (messageObject.type === "USER")
+    if (messageObject.type === "USER") {
         msgSpan.innerHTML = `
         <span class="chatUsername">${messageObject.author.username}:</span>
         <span class="chatMessageContent">${messageObject.htmlContent}</span>`;
-     else
-        msgSpan.innerHTML = `
-        <span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
+        msgSpan.setAttribute('msg-pid', messageObject.author.id);
+    } else {
+        msgSpan.innerHTML = `<span class="chatMessageContent ${messageObject.type}">${messageObject.htmlContent}</span>`;
+    }
 
 
     if (messageObject.type === 'USER' && messageObject.author && messageObject.author.id !== player)
@@ -611,9 +702,11 @@ function addChatMessage(messageObject, player) {
     chatContent.appendChild(msgSpan);
     chatContent.scrollTop = chatContent.scrollHeight;       // auto-scroll to bottom
 
-    msgSpan.querySelector('img').onload = () => {
-        chatContent.scrollTop = chatContent.scrollHeight;
-    };
+    let msgImg = msgSpan.querySelector('img');
+    if (msgImg)
+        msgImg.onload = () => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        };
 }
 
 /**
@@ -701,14 +794,34 @@ function initSocketEvents(data) {
         showError(`Socket Error: ${JSON.stringify(error)}`);
     });
 
-    socket.on('message', (msg) => {
+    socket.on('userError', (error) => {
+        showError(error);
+    });
+
+    socket.on('message', msg => {
         addChatMessage(msg, playerId);
+    });
+
+    socket.on('messageEdit', msg => {
+        let message = document.querySelector(`.chatMessage[msg-id='${msg.id}']`);
+        message.setAttribute('msg-raw', msg.content);
+        message.querySelector('.chatMessageContent').innerHTML = msg.htmlContent;
+        let chatContent = document.querySelector('#chat-content');
+        let msgImg = message.querySelector('img');
+        if (msgImg)
+            msgImg.onload = () => {
+                chatContent.scrollTop = chatContent.scrollHeight;
+            };
+    });
+
+    socket.on('messageDelete', msgId => {
+        document.querySelector(`.chatMessage[msg-id='${msgId}'`).remove();
     });
 
     socket.on('statusChange', (status, winner) => {
         if (status === 'FINISHED' && winner) {
             if (document.querySelector('#container-bingo-round'))
-                displayWinner(winner);
+                displayWinner(winner, winner.id === Number(playerId));
         } else {
             window.location.reload();
         }
@@ -724,6 +837,9 @@ function initSocketEvents(data) {
 
     socket.on('usernameChange', (playerObject) => {
         document.querySelector(`.playerEntryContainer[b-pid='${playerObject.id}'] .playerNameSpan`).innerText = playerObject.username;
+        let msgUsernames = document.querySelectorAll(`.chatMessage[msg-pid='${playerObject.id}'] .chatUsername`);
+        for (let element of msgUsernames)
+            element.innerText = `${playerObject.username}: `;
     });
 
     socket.on('wordsChange', async () => {
@@ -752,6 +868,7 @@ function initRefresh() {
     getPlayerInfo().then((data) => {
         socket = new SimpleSocket(`/bingo/${getLobbyParam()}`, {playerId: data.id});
         initSocketEvents(data);
+        chatInput.user = data.id;
     });
     let chatContent = document.querySelector('#chat-content');
     chatContent.scrollTop = chatContent.scrollHeight;
@@ -771,6 +888,10 @@ window.addEventListener("keydown", async (e) => {
             await statusWrap(async () => await BingoGraphqlHelper.setLobbySettings(getLobbyWords(), gridSize));
         }
     }
+    if ([40, 38, 27].includes(e.which) && e.target === document.querySelector('#chat-Input')) {
+        e.preventDefault();
+        await onInputKeypress(e);
+    }
 }, false);
 
 window.onload = async () => {
@@ -782,6 +903,8 @@ window.onload = async () => {
                 showError(err.message);
             }
         }
+    chatInput = new ChatInput(document.querySelector('#chat-input'));
 };
 
 let socket = null;
+let chatInput = null;

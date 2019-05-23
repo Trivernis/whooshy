@@ -3,17 +3,25 @@ extends  includes/bingo-layout
 block content
     div(id='container-bingo-create')
         div(id='username-form')
+            h2 Please enter a username
             input(id='input-username'
                 type='text'
                 placeholder='Enter your name'
                 value=username
                 maxlength=30
                 onkeydown='submitOnEnter(event, () => indicateStatus(submitUsername, "#username-status"))')
-            button(
-                id='submit-username'
-                onclick='indicateStatus(submitUsername, "#username-status")') Set Username
-            div(id='username-status' class='statusIndicator')
+            if primaryJoin
+                button(
+                    id='submit-username'
+                    onclick='joinLobby()') Join Lobby
+            else
+                button(
+                    id='submit-username'
+                    onclick='indicateStatus(submitUsername, "#submit-username")') Set Username
         div(id='lobby-form')
-            button(id='join-lobby' onclick='joinLobby()') Join Lobby
-            button(id='create-lobby' onclick='createLobby()') Create Lobby
+            if primaryJoin
+                button(id='create-lobby' class='inactive' onclick='createLobby()') Create Lobby
+            else
+                button(id='create-lobby' onclick='createLobby()') Create Lobby
+        div(id='changelog')!= changelog
         include includes/bingo-statusbar

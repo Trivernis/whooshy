@@ -12,11 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - compression and minify
 - auto replacing image links with images in the chat
 - auto replacing urls to urls with link in the chat
+- message editing and deleting *(undo your mistakes)*
+- changelog to `bingo-create`
 
-## Changed
+### Changed
 
 - frontend to use socket.io instead of graphql for refreshing
 - use of socket.io for toggeling binogo fields
+- button behaviour on `bingo-create` to respond to the situation *(whatever that means)*
 
 ### Removed
 
@@ -24,9 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Socket reconnect doesn't load old messages (#20)
-- error message on create ui load
-- chat doesn't scroll down when an image is send
+- error message when loading `bingo-create`
+- chat doesn't scroll down when an image is send *(r/mildlyinfuriating)*
+- some style issues
 
 ## [0.1.1] - 2019-05-21
 

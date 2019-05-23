@@ -4,7 +4,10 @@ const express = require('express'),
     mdEmoji = require('markdown-it-emoji'),
     mdMark = require('markdown-it-mark'),
     mdSmartarrows = require('markdown-it-smartarrows'),
-    md = require('markdown-it')()
+    md = require('markdown-it')({
+        linkify: true,
+        typographer: true
+    })
         .use(mdEmoji)
         .use(mdMark)
         .use(mdSmartarrows),
@@ -438,6 +441,34 @@ class BingoDataManager {
      */
     async addUserMessage(lobbyId, playerId, messageContent) {
         return await this._queryFirstResult(this.queries.addUserMessage.sql, [playerId, lobbyId, messageContent]);
+    }
+
+    /**
+     * Edits a message
+     * @param messageId {Number} - the id of the message
+     * @param messageContent {String} - the new content of the message
+     * @returns {Promise<*>}
+     */
+    async editMessage(messageId, messageContent) {
+        return await this._queryFirstResult(this.queries.editMessage.sql, [messageId, messageContent]);
+    }
+
+    /**
+     * Deletes a message
+     * @param messageId {Number} - the id of the message
+     * @returns {Promise<*>}
+     */
+    async deleteMessage(messageId) {
+        return await this._queryFirstResult(this.queries.deleteMessage.sql, [messageId]);
+    }
+
+    /**
+     * Returns the data of a message
+     * @param messageId {Number} - the id of the message
+     * @returns {Promise<*>}
+     */
+    async getMessageData(messageId) {
+        return await this._queryFirstResult(this.queries.getMessageData.sql, [messageId]);
     }
 
     /**
@@ -1374,7 +1405,7 @@ function checkBingo(fg) {
  * @param message {String} - the raw message
  */
 function preMarkdownParse(message) {
-    let linkMatch = /https?:\/\/((([\w-]+\.)+[\w-]+)(\S*))/g;
+    let linkMatch = /(^|[^(])https?:\/\/((([\w-]+\.)+[\w-]+)(\S*))([^)]|$)/g;
     let imageMatch = /.*\.(\w+)/g;
     let imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg'];
     let links = message.match(linkMatch);
@@ -1386,8 +1417,6 @@ function preMarkdownParse(message) {
 
             if (imgGroups && imgGroups[1] && imageExtensions.includes(imgGroups[1]))
                 message = message.replace(link, `![${linkGroups[1]}](${link})`);
-            else if (linkGroups && linkGroups[1])
-                message = message.replace(link, `[${linkGroups[1]}](${link})`);
         }
 
     return message;
@@ -1512,7 +1541,10 @@ async function getMessageData(lobbyId) {
     let messages = await lobbyWrapper.messages({limit: 20});
     let msgReturn = [];
     for (let message of messages)
-        msgReturn.push(Object.assign(message, {username: await message.author.username()}));
+        msgReturn.push(Object.assign(message, {
+            playerId: message.author.id,
+            username: await message.author.username()
+        }));
     return msgReturn;
 }
 
@@ -1536,8 +1568,34 @@ function createSocketIfNotExist(io, lobbyId) {
                     let messageWrapper = new MessageWrapper(result);
                     lobbySocket.emit('message', await resolveMessage(messageWrapper));
                 } catch (err) {
-                    console.log(err);
+                    console.error(err);
                 }
+            });
+            socket.on('messageEdit', async (context, message, messageId) => {
+                try {
+                    let row = await bdm.getMessageData(messageId);
+                    if (row.player_id === Number(context.playerId)) {
+                        let result = await bdm.editMessage(messageId, message);
+                        let messageWrapper = new MessageWrapper(result);
+                        lobbySocket.emit('messageEdit', await resolveMessage(messageWrapper));
+                    } else {
+                        socket.emit('userError', "You are only allowed to edit your messages.");
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+            socket.on('messageDelete', async (context, messageId) => {
+               try {
+                   let row = await bdm.getMessageData(messageId);
+
+                   if (row.player_id === Number(context.playerId)) {
+                       await bdm.deleteMessage(messageId);
+                       lobbySocket.emit('messageDelete', messageId);
+                   }
+               } catch (err) {
+                   console.error(err);
+               }
             });
             socket.on('fieldToggle', async (context, location) => {
                 let {row, column} = location;
@@ -1609,7 +1667,9 @@ router.init = async (bingoIo, io) => {
         } else {
             res.render('bingo/bingo-create', {
                 info: info,
-                username: await playerWrapper.username()
+                username: await playerWrapper.username(),
+                changelog: md.render(globals.changelog),
+                primaryJoin: (req.query.g && await lobbyWrapper.exists())
             });
         }
     });
