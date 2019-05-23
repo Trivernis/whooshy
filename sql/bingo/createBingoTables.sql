@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS bingo.lobbys (
     admin_id serial references bingo.players(id) ON DELETE SET NULL,
     grid_size integer DEFAULT 3 NOT NULL,
     current_round integer,
-    expire timestamp DEFAULT (NOW() + interval '1 hour' )
+    expire timestamp DEFAULT (NOW() + interval '4 hour' )
 );
 
 -- lobbys-players table

@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2019-05-23
+
+### Added
+
+- socket.io for real time communication
+- compression and minify
+- auto replacing image links with images in the chat
+- auto replacing urls to urls with link in the chat
+- message editing and deleting *(undo your mistakes)*
+- changelog to `bingo-create`
+
+### Changed
+
+- frontend to use socket.io instead of graphql for refreshing
+- use of socket.io for toggeling binogo fields
+- button behaviour on `bingo-create` to respond to the situation *(whatever that means)*
+
+### Removed
+
+- graphql frontend functions to send messages and refresh
+
+### Fixed
+
+- error message when loading `bingo-create`
+- chat doesn't scroll down when an image is send *(r/mildlyinfuriating)*
+- some style issues
+
 ## [0.1.1] - 2019-05-21
 
 ### Fixed
