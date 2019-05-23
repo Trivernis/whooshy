@@ -1520,7 +1520,7 @@ async function resolvePlayer(playerWrapper, lobbyId) {
 /**
  * Resolves a fieldWrapper object
  * @param fieldWrapper
- * @returns {Promise<{submitted: (Object.submitted|*), column: *, bingo: boolean, row: (Object.grid_row|number|*)}>}
+ * @returns {Promise<{submitted: (Object.submitted|*), column: *, bingo: boolean, row: (*)}>}
  */
 async function resolveGridField(fieldWrapper) {
     return {

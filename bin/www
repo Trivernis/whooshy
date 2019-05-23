@@ -6,7 +6,6 @@
 
 const appInit = require('../app');
 const debug = require('debug')('whooshy:server');
-const http = require('http');
 const yaml = require('js-yaml');
 const fsx = require('fs-extra');
 

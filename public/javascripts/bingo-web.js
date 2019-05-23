@@ -318,6 +318,8 @@ class ChatInput {
 
             this.element.value = message.getAttribute('msg-raw');
             this.editId = Number(message.getAttribute('msg-id'));
+            let chatContent = document.querySelector('#chat-content');
+            chatContent.scrollTop = message.offsetTop;
         } else {
             this.setNormal();
         }
@@ -331,6 +333,8 @@ class ChatInput {
             if (lastMessage)
                 lastMessage.classList.remove('selected');
             this.editId = null;
+            let chatContent = document.querySelector('#chat-content');
+            chatContent.scrollTop = chatContent.scrollHeight;
         }
     }
 }
@@ -881,12 +885,10 @@ window.addEventListener("unhandledrejection", function (promiseRejectionEvent) {
 
 // prevent ctrl + s
 window.addEventListener("keydown", async (e) => {
-    if (e.which === 83 && (navigator.platform.match("Mac") ? e.metaKey : e.ctrlKey)) {
-        if (document.querySelector('#input-bingo-words')) {
-            e.preventDefault();
-            let gridSize = document.querySelector('#input-grid-size').value || 3;
-            await statusWrap(async () => await BingoGraphqlHelper.setLobbySettings(getLobbyWords(), gridSize));
-        }
+    if (e.which === 83 && (navigator.platform.match("Mac") ? e.metaKey : e.ctrlKey) && document.querySelector('#input-bingo-words')) {
+        e.preventDefault();
+        let gridSize = document.querySelector('#input-grid-size').value || 3;
+        await statusWrap(async () => await BingoGraphqlHelper.setLobbySettings(getLobbyWords(), gridSize));
     }
     if ([40, 38, 27].includes(e.which) && e.target === document.querySelector('#chat-Input')) {
         e.preventDefault();

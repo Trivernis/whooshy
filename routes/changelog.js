@@ -1,7 +1,6 @@
 const express = require('express'),
     router = express.Router(),
     globals = require('../lib/globals'),
-    fsx = require('fs-extra'),
     mdEmoji = require('markdown-it-emoji'),
     md = require('markdown-it')()
     .use(mdEmoji);
