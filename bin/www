@@ -6,7 +6,6 @@
 
 const appInit = require('../app');
 const debug = require('debug')('whooshy:server');
-const http = require('http');
 const yaml = require('js-yaml');
 const fsx = require('fs-extra');
 
@@ -27,14 +26,8 @@ try {
 
 let port = normalizePort(process.env.PORT || settings.port || '3000');
 
-appInit().then((app) => {
+appInit().then(([app, server]) => {
     app.set('port', port);
-
-    /**
-     * Create HTTP server.
-     */
-
-    let server = http.createServer(app);
 
     /**
      * Listen on provided port, on all network interfaces.

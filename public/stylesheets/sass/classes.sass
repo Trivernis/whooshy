@@ -7,14 +7,6 @@
 .hidden
   display: None !important
 
-.popup
-  height: 60%
-  width: 40%
-  z-index: 1000
-  position: fixed
-  top: 20%
-  left: 30%
-
 .grid
   display: grid
 
@@ -43,6 +35,21 @@
   background-color: $pending
   animation-name: pulse-opacity
   animation-duration: 5s
+  animation-iteration-count: infinite
+
+.socketStatusIndicator[socket-status='connected']
+  background-color: $success
+
+.socketStatusIndicator[socket-status='reconnecting']
+  background-color: mix($pending, $error)
+  animation-name: pulse-opacity
+  animation-duration: 5s
+  animation-iteration-count: infinite
+
+.socketStatusIndicator[socket-status='disconnected']
+  background-color: $error
+  animation-name: pulse-opacity
+  animation-duration: 2s
   animation-iteration-count: infinite
 
 .pending

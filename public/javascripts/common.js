@@ -1,6 +1,48 @@
 /* eslint-disable no-unused-vars, no-undef */
 
 /**
+ * A simple WebSocket
+ */
+class SimpleSocket {
+    /**
+     * Constructor
+     * @param url
+     * @param emitContext
+     */
+    constructor(url, emitContext) {
+        this.socket = io.connect(url);
+        this.context = emitContext;
+    }
+
+    /**
+     * Wrapper for the emit function
+     * @param event
+     * @param data
+     * @param callback
+     */
+    emit(event, data, callback) {
+        this.socket.emit(event, this.context, data, callback);
+    }
+
+    /**
+     * Wrapper for on event function
+     * @param event
+     * @param callback
+     */
+    on(event, callback) {
+        this.socket.on(event, callback);
+    }
+
+    /**
+     * Returns if the socket is connected
+     * @returns {*|boolean}
+     */
+    get connected() {
+        return this.socket.connected;
+    }
+}
+
+/**
  * HTTP POST to an url with a post body
  * @param url {String} - the url to post to
  * @param postBody {JSON|Object} - the json-object to post
@@ -122,9 +164,15 @@ async function indicateStatus(func, indicatorSelector) {
             statusIndicator.setAttribute('status', 'success');
         else
             statusIndicator.setAttribute('status', 'error');
+        setTimeout(() => {
+            statusIndicator.setAttribute('status', '');
+        }, 1000);
     } catch (err) {
         console.error(err);
         statusIndicator.setAttribute('status', 'error');
+        setTimeout(() => {
+            statusIndicator.setAttribute('status', '');
+        }, 1000);
     }
 }
 

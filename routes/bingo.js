@@ -4,7 +4,10 @@ const express = require('express'),
     mdEmoji = require('markdown-it-emoji'),
     mdMark = require('markdown-it-mark'),
     mdSmartarrows = require('markdown-it-smartarrows'),
-    md = require('markdown-it')()
+    md = require('markdown-it')({
+        linkify: true,
+        typographer: true
+    })
         .use(mdEmoji)
         .use(mdMark)
         .use(mdSmartarrows),
@@ -12,6 +15,7 @@ const express = require('express'),
     globals = require('../lib/globals');
 
 let pgPool = globals.pgPool;
+let sockets = {};
 
 /**
  * Class to manage the bingo data in the database.
@@ -138,7 +142,16 @@ class BingoDataManager {
      * @returns {Promise<*>}
      */
     async updateLobbyExpiration(lobbyId) {
-        return await this._queryDatabase(this.queries.updateLobbyExpire.sql, [lobbyId]);
+        return await this._queryFirstResult(this.queries.updateLobbyExpire.sql, [lobbyId]);
+    }
+
+    /**
+     * Returns all lobby ids
+     * @returns {Promise<*>}
+     */
+    async getLobbyIds() {
+        let results = await this._queryAllResults(this.queries.getLobbyIds.sql, []);
+        return results.map(x => x.id);
     }
 
     /**
@@ -431,6 +444,34 @@ class BingoDataManager {
     }
 
     /**
+     * Edits a message
+     * @param messageId {Number} - the id of the message
+     * @param messageContent {String} - the new content of the message
+     * @returns {Promise<*>}
+     */
+    async editMessage(messageId, messageContent) {
+        return await this._queryFirstResult(this.queries.editMessage.sql, [messageId, messageContent]);
+    }
+
+    /**
+     * Deletes a message
+     * @param messageId {Number} - the id of the message
+     * @returns {Promise<*>}
+     */
+    async deleteMessage(messageId) {
+        return await this._queryFirstResult(this.queries.deleteMessage.sql, [messageId]);
+    }
+
+    /**
+     * Returns the data of a message
+     * @param messageId {Number} - the id of the message
+     * @returns {Promise<*>}
+     */
+    async getMessageData(messageId) {
+        return await this._queryFirstResult(this.queries.getMessageData.sql, [messageId]);
+    }
+
+    /**
      * Adds a message of type "INFO" to the lobby
      * @param lobbyId {Number} - the id of the lobby
      * @param messageContent {String} - the content of the info message
@@ -650,12 +691,12 @@ class GridWrapper {
         let gridField = new GridFieldWrapper(result);
         let username = await (await this.player()).username();
         let word = await gridField.word.content();
+        let lobbyWrapper = await this.lobby();
+
         if (gridField.submitted)
-            await bdm.addInfoMessage(this.lobbyId,
-                `${username} toggled "${word}"`);
+            await lobbyWrapper.addInfoMessage(`${username} toggled "${word}"`);
         else
-            await bdm.addInfoMessage(this.lobbyId,
-                `${username} untoggled "${word}"`);
+            await lobbyWrapper.addInfoMessage(`${username} untoggled "${word}"`);
         return gridField;
     }
 }
@@ -668,7 +709,7 @@ class MessageWrapper {
     constructor(row) {
         this.id = row.id;
         this.content = row.content;
-        this.htmlContent = md.renderInline(this.content);
+        this.htmlContent = md.renderInline(preMarkdownParse(this.content));
         this.author = new PlayerWrapper(row.player_id);
         this.lobby = new LobbyWrapper(row.lobby_id);
         this.type = row.type;
@@ -881,6 +922,7 @@ class RoundWrapper {
             let updateResult = await bdm.setRoundWinner(this.id, winnerId);
             if (updateResult)
                 await this.setFinished();
+            (await this.lobby()).socket.emit('statusChange', 'FINISHED', await resolvePlayer(new PlayerWrapper(winnerId)));
             return true;
         }
     }
@@ -894,6 +936,7 @@ class LobbyWrapper {
      */
     constructor(id, row) {
         this.id = id;
+        this.socket = sockets[id];
         this._infoLoaded = false;
         if (row)
             this._assignProperties(row);
@@ -907,7 +950,7 @@ class LobbyWrapper {
      */
     async _loadLobbyInfo(force) {
         if (!this._infoLoaded && !force) {
-            let row = await bdm.getLobbyInfo(this.id);
+            let row = await bdm.updateLobbyExpiration(this.id);
             this._assignProperties(row);
         }
     }
@@ -926,6 +969,14 @@ class LobbyWrapper {
             this.last_round = row.last_round;
             this._infoLoaded = true;
         }
+    }
+
+    /**
+     * Emits an event is a socket exists for the lobby
+     */
+    emit() {
+        if (this.socket)
+            this.socket.emit(...arguments);
     }
 
     /**
@@ -1061,6 +1112,7 @@ class LobbyWrapper {
             await this._createRound();
             await this._createGrids();
             await this.setRoundStatus('ACTIVE');
+            this.emit('statusChange', 'ACTIVE');
         }
     }
 
@@ -1115,6 +1167,7 @@ class LobbyWrapper {
                 await this.addWord(word);
             for (let word of removedWords)
                  await this.removeWord(word.id);
+            this.emit('wordsChange');
         }
     }
 
@@ -1145,14 +1198,26 @@ class LobbyWrapper {
     }
 
     /**
+     * Adds an info message and emits the message event.
+     * @param message {String} - the info messages content
+     * @returns {Promise<void>}
+     */
+    async addInfoMessage(message) {
+        let result = await bdm.addInfoMessage(this.id, message);
+        this.emit('message', await resolveMessage(new MessageWrapper(result)));
+    }
+
+    /**
      * Adds a player to the lobby.
      * @param playerId
      * @returns {Promise<void>}
      */
     async addPlayer(playerId) {
         await bdm.addPlayerToLobby(playerId, this.id);
-        let username = await new PlayerWrapper(playerId).username();
-        await bdm.addInfoMessage(this.id, `${username} joined.`);
+        let playerWrapper = new PlayerWrapper(playerId);
+        this.emit('playerJoin', await resolvePlayer(playerWrapper));
+        let username = await playerWrapper.username();
+        await this.addInfoMessage(`${username} joined.`);
         await this._loadLobbyInfo(true);
     }
 
@@ -1164,7 +1229,8 @@ class LobbyWrapper {
     async removePlayer(playerId) {
         await bdm.removePlayerFromLobby(playerId, this.id);
         let username = await new PlayerWrapper(playerId).username();
-        await bdm.addInfoMessage(this.id, `${username} left.`);
+        this.emit('playerLeave', playerId);
+        await this.addInfoMessage(`${username} left.`);
         await this._loadLobbyInfo(true);
     }
 
@@ -1185,7 +1251,8 @@ class LobbyWrapper {
     async setRoundStatus(status) {
         let currentRound = await this.currentRound();
         await currentRound.updateStatus(status);
-        await bdm.addInfoMessage(this.id, `Admin set round status to ${status}`);
+        await this.addInfoMessage(`Admin set round status to ${status}`);
+        this.emit('statusChange', status);
 
         if (status === 'FINISHED')
             await bdm.clearGrids(this.id);
@@ -1334,6 +1401,28 @@ function checkBingo(fg) {
 }
 
 /**
+ * Parses the message and replaces all links with markdown-links and images with markdown-images.
+ * @param message {String} - the raw message
+ */
+function preMarkdownParse(message) {
+    let linkMatch = /(^|[^(])https?:\/\/((([\w-]+\.)+[\w-]+)(\S*))([^)]|$)/g;
+    let imageMatch = /.*\.(\w+)/g;
+    let imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg'];
+    let links = message.match(linkMatch);
+
+    if (links)
+        for (let link of links) {
+            let linkGroups = linkMatch.exec(link);
+            let imgGroups = imageMatch.exec(link);
+
+            if (imgGroups && imgGroups[1] && imageExtensions.includes(imgGroups[1]))
+                message = message.replace(link, `![${linkGroups[1]}](${link})`);
+        }
+
+    return message;
+}
+
+/**
  * Gets player data for a lobby
  * @param lobbyWrapper
  * @returns {Promise<Array>}
@@ -1396,6 +1485,53 @@ async function getGridData(lobbyId, playerId) {
 }
 
 /**
+ * Resolves a message wrapper object
+ * @param msgWrapper
+ * @returns {Promise<{author: {id: (*|MessageWrapper.author.id), username: String}, id: *, content: *, timestamp: Timestamp | * | number, htmlContent: *}>}
+ */
+async function resolveMessage(msgWrapper) {
+    return {
+        id: msgWrapper.id,
+        type: msgWrapper.type,
+        content: msgWrapper.content,
+        timestamp: msgWrapper.timestamp,
+        htmlContent: msgWrapper.htmlContent,
+        author: {
+            id: msgWrapper.author.id,
+            username: await msgWrapper.author.username()
+        }
+    };
+}
+
+/**
+ * Resolves a player wrapper object
+ * @param playerWrapper
+ * @param lobbyId
+ * @returns {Promise<{wins: PlayerWrapper.wins, id: *, username: (String|*)}>}
+ */
+async function resolvePlayer(playerWrapper, lobbyId) {
+    return {
+        id: playerWrapper.id,
+        username: await playerWrapper.username(),
+        wins: await playerWrapper.wins({lobbyId: lobbyId})
+    };
+}
+
+/**
+ * Resolves a fieldWrapper object
+ * @param fieldWrapper
+ * @returns {Promise<{submitted: (Object.submitted|*), column: *, bingo: boolean, row: (*)}>}
+ */
+async function resolveGridField(fieldWrapper) {
+    return {
+        row: fieldWrapper.row,
+        column: fieldWrapper.column,
+        submitted: fieldWrapper.submitted,
+        bingo: await fieldWrapper.grid.bingo()
+    };
+}
+
+/**
  * Returns resolved message data.
  * @param lobbyId
  * @returns {Promise<Array>}
@@ -1405,239 +1541,313 @@ async function getMessageData(lobbyId) {
     let messages = await lobbyWrapper.messages({limit: 20});
     let msgReturn = [];
     for (let message of messages)
-        msgReturn.push(Object.assign(message, {username: await message.author.username()}));
+        msgReturn.push(Object.assign(message, {
+            playerId: message.author.id,
+            username: await message.author.username()
+        }));
     return msgReturn;
 }
 
 // -- Router stuff
 
 
+/**
+ * Creates a lobby socket if none exists.
+ * @param io
+ * @param lobbyId
+ */
+function createSocketIfNotExist(io, lobbyId) {
+    if (!sockets[lobbyId]) {
+        let lobbySocket = io.of(`/bingo/${lobbyId}`);
+        sockets[lobbyId] = lobbySocket;
+
+        lobbySocket.on('connection', (socket) => {
+            socket.on('message', async (context, message) => {
+                try {
+                    let result = await bdm.addUserMessage(lobbyId, context.playerId, message);
+                    let messageWrapper = new MessageWrapper(result);
+                    lobbySocket.emit('message', await resolveMessage(messageWrapper));
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+            socket.on('messageEdit', async (context, message, messageId) => {
+                try {
+                    let row = await bdm.getMessageData(messageId);
+                    if (row.player_id === Number(context.playerId)) {
+                        let result = await bdm.editMessage(messageId, message);
+                        let messageWrapper = new MessageWrapper(result);
+                        lobbySocket.emit('messageEdit', await resolveMessage(messageWrapper));
+                    } else {
+                        socket.emit('userError', "You are only allowed to edit your messages.");
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+            socket.on('messageDelete', async (context, messageId) => {
+               try {
+                   let row = await bdm.getMessageData(messageId);
+
+                   if (row.player_id === Number(context.playerId)) {
+                       await bdm.deleteMessage(messageId);
+                       lobbySocket.emit('messageDelete', messageId);
+                   }
+               } catch (err) {
+                   console.error(err);
+               }
+            });
+            socket.on('fieldToggle', async (context, location) => {
+                let {row, column} = location;
+                let result = await (await (new PlayerWrapper(context.playerId)).grid({lobbyId: lobbyId}))
+                    .toggleField(row, column);
+                socket.emit('fieldChange', await resolveGridField(result));
+            });
+        });
+    }
+}
+
 let bdm = new BingoDataManager(pgPool);
 
-router.init = async () => {
+router.init = async (bingoIo, io) => {
     await bdm.init();
-};
 
-router.use(async (req, res, next) => {
-    if (req.session.bingoPlayerId)
-        await bdm.updatePlayerExpiration(req.session.bingoPlayerId);
-    next();
-});
+    for (let id of await bdm.getLobbyIds())
+        createSocketIfNotExist(io, id);
 
-router.get('/', async (req, res) => {
-    let playerId = req.session.bingoPlayerId;
-    let info = req.session.acceptedCookies? null: globals.cookieInfo;
-    let lobbyWrapper = new LobbyWrapper(req.query.g);
-    let playerWrapper = new PlayerWrapper(playerId);
+    router.use(async (req, res, next) => {
+        if (req.session.bingoPlayerId)
+            await bdm.updatePlayerExpiration(req.session.bingoPlayerId);
+        next();
+    });
 
-    if (playerId && await playerWrapper.exists() && req.query.g && await lobbyWrapper.exists()) {
-        let lobbyId = req.query.g;
+    router.get('/', async (req, res) => {
+        let playerId = req.session.bingoPlayerId;
+        let info = req.session.acceptedCookies? null: globals.cookieInfo;
+        let lobbyWrapper = new LobbyWrapper(req.query.g);
+        let playerWrapper = new PlayerWrapper(playerId);
 
-        if (!(await lobbyWrapper.roundActive() && await playerWrapper.hasGrid(lobbyId))) {
-            if (!await lobbyWrapper.hasPlayer(playerId))
-                await lobbyWrapper.addPlayer(playerId);
-            let playerData = await getPlayerData(lobbyWrapper);
-            let words = await getWordsData(lobbyWrapper);
-            let admin = await lobbyWrapper.admin();
-            res.render('bingo/bingo-lobby', {
-                players: playerData,
-                isAdmin: (playerId === admin.id),
-                adminId: admin.id,
-                words: words,
-                wordString: words.join('\n'),
-                gridSize: await lobbyWrapper.gridSize(),
-                info: info,
-                messages: await getMessageData(lobbyId)
-            });
-        } else {
-            if (await lobbyWrapper.hasPlayer(playerId) && await playerWrapper.hasGrid(lobbyId)) {
+        if (playerId && await playerWrapper.exists() && req.query.g && await lobbyWrapper.exists()) {
+            let lobbyId = req.query.g;
+            createSocketIfNotExist(io, lobbyId);
+
+            if (!(await lobbyWrapper.roundActive() && await playerWrapper.hasGrid(lobbyId))) {
+                if (!await lobbyWrapper.hasPlayer(playerId))
+                    await lobbyWrapper.addPlayer(playerId);
                 let playerData = await getPlayerData(lobbyWrapper);
-                let grid = await getGridData(lobbyId, playerId);
+                let words = await getWordsData(lobbyWrapper);
                 let admin = await lobbyWrapper.admin();
-                res.render('bingo/bingo-round', {
+                res.render('bingo/bingo-lobby', {
                     players: playerData,
-                    grid: grid,
                     isAdmin: (playerId === admin.id),
                     adminId: admin.id,
+                    words: words,
+                    wordString: words.join('\n'),
+                    gridSize: await lobbyWrapper.gridSize(),
                     info: info,
                     messages: await getMessageData(lobbyId)
                 });
             } else {
-                res.redirect('/bingo');
+                if (await lobbyWrapper.hasPlayer(playerId) && await playerWrapper.hasGrid(lobbyId)) {
+                    let playerData = await getPlayerData(lobbyWrapper);
+                    let grid = await getGridData(lobbyId, playerId);
+                    let admin = await lobbyWrapper.admin();
+                    res.render('bingo/bingo-round', {
+                        players: playerData,
+                        grid: grid,
+                        isAdmin: (playerId === admin.id),
+                        adminId: admin.id,
+                        info: info,
+                        messages: await getMessageData(lobbyId)
+                    });
+                } else {
+                    res.redirect('/bingo');
+                }
             }
+        } else {
+            res.render('bingo/bingo-create', {
+                info: info,
+                username: await playerWrapper.username(),
+                changelog: md.render(globals.changelog),
+                primaryJoin: (req.query.g && await lobbyWrapper.exists())
+            });
         }
-    } else {
-        res.render('bingo/bingo-create', {
-            info: info,
-            username: await playerWrapper.username()
-        });
-    }
-});
+    });
 
-router.graphqlResolver = async (req, res) => {
-    let playerId = req.session.bingoPlayerId;
-    if (playerId)
-        await bdm.updatePlayerExpiration(playerId);
+    router.graphqlResolver = async (req, res) => {
+        let playerId = req.session.bingoPlayerId;
+        if (playerId)
+            await bdm.updatePlayerExpiration(playerId);
 
-    return {
-        // queries
-        lobby: async ({id}) => {
-            await bdm.updateLobbyExpiration(id);
-            return new LobbyWrapper(id);
-        },
-        player: ({id}) => {
-            if (id)
-                return new PlayerWrapper(id);
-            else
+        return {
+            // queries
+            lobby: async ({id}) => {
+                await bdm.updateLobbyExpiration(id);
+                return new LobbyWrapper(id);
+            },
+            player: ({id}) => {
+                if (id)
+                    return new PlayerWrapper(id);
+                else
                 if (playerId)
                     return new PlayerWrapper(playerId);
                 else
                     res.status(400);
-        },
-        // mutations
-        setUsername: async ({username}) => {
-            username = replaceTagSigns(username.substring(0, 30)).replace(/[^\w- ;[\]]/g, ''); // only allow 30 characters
-            if (username.length > 0) {
-                let playerWrapper = new PlayerWrapper(playerId);
+            },
+            // mutations
+            setUsername: async ({username}) => {
+                username = replaceTagSigns(username.substring(0, 30)).replace(/[\n\t👑🌟]|^\s+|\s+$/gu, ''); // only allow 30 characters
+                if (username.length > 0) {
+                    let playerWrapper = new PlayerWrapper(playerId);
 
-                if (!playerId || !(await playerWrapper.exists())) {
-                    req.session.bingoPlayerId = (await bdm.addPlayer(username)).id;
-                    playerId = req.session.bingoPlayerId;
+                    if (!playerId || !(await playerWrapper.exists())) {
+                        req.session.bingoPlayerId = (await bdm.addPlayer(username)).id;
+                        playerId = req.session.bingoPlayerId;
+                    } else {
+                        let oldName = await playerWrapper.username();
+                        await bdm.updatePlayerUsername(playerId, username);
+
+                        if (req.query.g) {
+                            let lobbyWrapper = new LobbyWrapper(req.query.g);
+                            if (await lobbyWrapper.exists()) {
+                                lobbyWrapper.emit('usernameChange',
+                                    await resolvePlayer(new PlayerWrapper(playerId), req.query.g));
+                                await lobbyWrapper.addInfoMessage(`${oldName} changed username to ${username}`);
+                            }
+                        }
+                    }
+                    return new PlayerWrapper(playerId);
                 } else {
-                    let oldName = await playerWrapper.username();
-                    await bdm.updatePlayerUsername(playerId, username);
-                    if (req.query.g)
-                        await bdm.addInfoMessage(req.query.g, `${oldName} changed username to ${username}`);
+                    res.status(400);
+                    return new GraphQLError('Username too short!');
                 }
-                return new PlayerWrapper(playerId);
-            } else {
+            },
+            createLobby: async({gridSize}) => {
+                if (playerId)
+                    if (gridSize > 0 && gridSize < 10) {
+                        let result = await bdm.createLobby(playerId, gridSize);
+                        createSocketIfNotExist(io, result.id);
+                        return new LobbyWrapper(result.id, result);
+                    } else {
+                        res.status(413);
+                    }
                 res.status(400);
-                return new GraphQLError('Username too short!');
-            }
-        },
-        createLobby: async({gridSize}) => {
-            if (playerId)
-                if (gridSize > 0 && gridSize < 10) {
-                    let result = await bdm.createLobby(playerId, gridSize);
-                    return new LobbyWrapper(result.id);
-                } else {
-                    res.status(413);
-                }
-            res.status(400);
-        },
-        mutateLobby: async ({id}) => {
-            let lobbyId = id;
-            await bdm.updateLobbyExpiration(lobbyId);
-            let lobbyWrapper = new LobbyWrapper(lobbyId);
-            return {
-                join: async () => {
-                    if (playerId) {
-                        await lobbyWrapper.addPlayer(playerId);
-                        return lobbyWrapper;
-                    } else {
-                        res.status(400);
-                    }
-                },
-                leave: async () => {
-                    if (playerId) {
-                        await lobbyWrapper.removePlayer(playerId);
-                        return true;
-                    } else {
-                        res.status(400);
-                    }
-                },
-                kickPlayer: async ({pid}) => {
-                    let admin = await lobbyWrapper.admin();
-                    if (admin.id === playerId) {
-                        await lobbyWrapper.removePlayer(pid);
-                        return new PlayerWrapper(pid);
-                    } else {
-                        res.status(403);
-                        return new GraphQLError('You are not an admin');
-                    }
-                },
-                startRound: async () => {
-                    let admin = await lobbyWrapper.admin();
-                    if (admin.id === playerId) {
-                        await lobbyWrapper.startNewRound();
-                        return lobbyWrapper.currentRound();
-                    } else {
-                        res.status(403);
-                        return new GraphQLError('You are not an admin');
-                    }
-                },
-                setRoundStatus: async ({status}) => {
-                    let admin = await lobbyWrapper.admin();
-                    if (admin.id === playerId) {
-                        return await lobbyWrapper.setRoundStatus(status);
-                    } else {
-                        res.status(403);
-                        return new GraphQLError('You are not an admin');
-                    }
-                },
-                setGridSize: async ({gridSize}) => {
-                    if (gridSize > 0 && gridSize < 6) {
+            },
+            mutateLobby: async ({id}) => {
+                let lobbyId = id;
+                createSocketIfNotExist(io, lobbyId);
+                await bdm.updateLobbyExpiration(lobbyId);
+                let lobbyWrapper = new LobbyWrapper(lobbyId);
+                return {
+                    join: async () => {
+                        if (playerId) {
+                            await lobbyWrapper.addPlayer(playerId);
+                            return lobbyWrapper;
+                        } else {
+                            res.status(400);
+                        }
+                    },
+                    leave: async () => {
+                        if (playerId) {
+                            await lobbyWrapper.removePlayer(playerId);
+                            return true;
+                        } else {
+                            res.status(400);
+                        }
+                    },
+                    kickPlayer: async ({pid}) => {
                         let admin = await lobbyWrapper.admin();
                         if (admin.id === playerId) {
-                            await lobbyWrapper.setGridSize(gridSize);
-                            return lobbyWrapper;
+                            await lobbyWrapper.removePlayer(pid);
+                            return new PlayerWrapper(pid);
                         } else {
                             res.status(403);
                             return new GraphQLError('You are not an admin');
                         }
-                    } else {
-                        res.status(400);
-                        return new GraphQLError('Grid size too big!');
-                    }
-                },
-                setWords: async({words}) => {
-                    let admin = await lobbyWrapper.admin();
-                    if (admin.id === playerId)
-                        if (words.length < 10000) {
-                            await lobbyWrapper.setWords(words);
-                            return lobbyWrapper;
+                    },
+                    startRound: async () => {
+                        let admin = await lobbyWrapper.admin();
+                        if (admin.id === playerId) {
+                            await lobbyWrapper.startNewRound();
+                            return lobbyWrapper.currentRound();
                         } else {
-                            res.status(413);    // request entity too large
-                            return new GraphQLError('Too many words');
+                            res.status(403);
+                            return new GraphQLError('You are not an admin');
                         }
-                    else
-                        res.status(403);        // forbidden
+                    },
+                    setRoundStatus: async ({status}) => {
+                        let admin = await lobbyWrapper.admin();
+                        if (admin.id === playerId) {
+                            return await lobbyWrapper.setRoundStatus(status);
+                        } else {
+                            res.status(403);
+                            return new GraphQLError('You are not an admin');
+                        }
+                    },
+                    setGridSize: async ({gridSize}) => {
+                        if (gridSize > 0 && gridSize < 6) {
+                            let admin = await lobbyWrapper.admin();
+                            if (admin.id === playerId) {
+                                await lobbyWrapper.setGridSize(gridSize);
+                                return lobbyWrapper;
+                            } else {
+                                res.status(403);
+                                return new GraphQLError('You are not an admin');
+                            }
+                        } else {
+                            res.status(400);
+                            return new GraphQLError('Grid size too big!');
+                        }
+                    },
+                    setWords: async({words}) => {
+                        let admin = await lobbyWrapper.admin();
+                        if (admin.id === playerId)
+                            if (words.length < 10000) {
+                                await lobbyWrapper.setWords(words);
+                                return lobbyWrapper;
+                            } else {
+                                res.status(413);    // request entity too large
+                                return new GraphQLError('Too many words');
+                            }
+                        else
+                            res.status(403);        // forbidden
 
-                },
-                sendMessage: async ({message}) => {
-                    if (await lobbyWrapper.hasPlayer(playerId)) {
-                        let result = await bdm.addUserMessage(lobbyId, playerId, message);
-                        return new MessageWrapper(result);
-                    } else {
-                        res.status(401);        // unautorized
-                        return new GraphQLError('You are not in the lobby');
-                    }
-                },
-                submitBingo: async () => {
-                    let isBingo = await (await (new PlayerWrapper(playerId)).grid({lobbyId: lobbyId})).bingo();
-                    let currentRound = await lobbyWrapper.currentRound();
-                    if (isBingo && await lobbyWrapper.hasPlayer(playerId)) {
-                        let result = await currentRound.setWinner(playerId);
-                        let username = await new PlayerWrapper(playerId).username();
-                        if (result) {
-                            await bdm.addInfoMessage(lobbyId, `**${username}** won!`);
-                            await bdm.clearGrids(lobbyId);
-                            return currentRound;
+                    },
+                    sendMessage: async ({message}) => {
+                        if (await lobbyWrapper.hasPlayer(playerId)) {
+                            let result = await bdm.addUserMessage(lobbyId, playerId, message);
+                            return new MessageWrapper(result);
                         } else {
-                            res.status(500);
+                            res.status(401);        // unautorized
+                            return new GraphQLError('You are not in the lobby');
                         }
-                    } else {
-                        res.status(400);
-                        return new GraphQLError('Bingo check failed. This is not a bingo!');
+                    },
+                    submitBingo: async () => {
+                        let isBingo = await (await (new PlayerWrapper(playerId)).grid({lobbyId: lobbyId})).bingo();
+                        let currentRound = await lobbyWrapper.currentRound();
+                        if (isBingo && await lobbyWrapper.hasPlayer(playerId)) {
+                            let result = await currentRound.setWinner(playerId);
+                            let username = await new PlayerWrapper(playerId).username();
+                            if (result) {
+                                await bdm.addInfoMessage(lobbyId, `**${username}** won!`);
+                                await bdm.clearGrids(lobbyId);
+                                return currentRound;
+                            } else {
+                                res.status(500);
+                            }
+                        } else {
+                            res.status(400);
+                            return new GraphQLError('Bingo check failed. This is not a bingo!');
+                        }
+                    },
+                    toggleGridField: async ({location}) => {
+                        let {row, column} = location;
+                        return await (await (new PlayerWrapper(playerId)).grid({lobbyId: lobbyId}))
+                            .toggleField(row, column);
                     }
-                },
-                toggleGridField: async ({location}) => {
-                    let {row, column} = location;
-                    return await (await (new PlayerWrapper(playerId)).grid({lobbyId: lobbyId}))
-                        .toggleField(row, column);
-                }
-            };
-        }
+                };
+            }
+        };
     };
 };
 

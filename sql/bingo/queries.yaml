@@ -48,7 +48,7 @@ addLobby:
 # params:
 # - {Number} - the id of the lobby
 updateLobbyExpire:
-  sql: UPDATE bingo.lobbys SET expire = (NOW() + interval '1 hours') WHERE id = $1;
+  sql: UPDATE bingo.lobbys SET expire = (NOW() + interval '4 hours') WHERE id = $1 RETURNING *;
 
 # inserts a player into a lobby
 # params:
@@ -76,6 +76,9 @@ getPlayerInLobby:
 # - {Number} - the id of the lobby
 getLobbyPlayers:
   sql: SELECT * FROM bingo.lobby_players WHERE lobby_players.lobby_id = $1;
+
+getLobbyIds:
+  sql: SELECT lobbys.id FROM bingo.lobbys;
 
 # returns all direct information about the lobby
 # params:
@@ -259,9 +262,28 @@ getWordsForGridId:
 addUserMessage:
   sql: INSERT INTO bingo.messages (player_id, lobby_id, content) VALUES ($1, $2, $3) RETURNING *;
 
+# edits a message
+# params:
+# - {Number} - the id of the message
+# - {Number} - the new content of the message
+editMessage:
+  sql: UPDATE bingo.messages SET content = $2 WHERE id = $1 RETURNING *;
+
 # inserts a info message
 # params:
 # - {Number} - the id of the lobby
 # - {String} - the content of the message
 addInfoMessage:
   sql: INSERT INTO bingo.messages (type, lobby_id, content) VALUES ('INFO', $1, $2) RETURNING *;
+
+# returns the data of a message
+# params:
+# - {Number} - the id of the message
+getMessageData:
+  sql: SELECT * from bingo.messages WHERE id = $1;
+
+# deletes a message
+# params:
+# - {Number} - the id of the message
+deleteMessage:
+  sql: DELETE FROM bingo.messages WHERE id = $1;
