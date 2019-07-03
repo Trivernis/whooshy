@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - error message when loading `bingo-create`
 - chat doesn't scroll down when an image is send *(r/mildlyinfuriating)*
 - some style issues
+- status on username submit is always error
 
 ## [0.1.1] - 2019-05-21
 

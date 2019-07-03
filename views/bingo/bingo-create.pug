@@ -9,7 +9,7 @@ block content
                 placeholder='Enter your name'
                 value=username
                 maxlength=30
-                onkeydown='submitOnEnter(event, () => indicateStatus(submitUsername, "#username-status"))')
+                onkeydown='submitOnEnter(event, () => statusWrap(submitUsername))')
             if primaryJoin
                 button(
                     id='submit-username'
