@@ -1,6 +1,7 @@
-const yaml = require('js-yaml'),
-    fsx = require('fs-extra');
+import * as yaml from 'js-yaml';
+import * as fsx from 'fs-extra';
 
+// @ts-ignore
 String.prototype.replaceAll = function(search, replacement) {
     let target = this;
     return target.replace(new RegExp(search, 'g'), replacement);
@@ -15,8 +16,8 @@ String.prototype.replaceAll = function(search, replacement) {
  *  sql: {String} pure sql if it is not stored in a file. Will be replaced by file contents if a file was given.
  * @param path {String} - the path where the queries.yaml file is stored
  */
-function parseSqlYaml(path) {
-    let queries = yaml.safeLoad(fsx.readFileSync(`${path}/queries.yaml`));
+export function parseSqlYaml(path: string) {
+    let queries = yaml.safeLoad(fsx.readFileSync(`${path}/queries.yaml`, 'utf-8'));
 
     for (let query of queries.exports)
         if (queries[query].file)
@@ -29,11 +30,11 @@ function parseSqlYaml(path) {
  * Reads the default-config.yaml and config.yaml in the path directory.
  * @param path {String} - the directory of the settings files.
  */
-function readSettings(path) {
-    let settings = yaml.safeLoad(fsx.readFileSync(`${path}/default-config.yaml`));
+export function readSettings(path: string) {
+    let settings = yaml.safeLoad(fsx.readFileSync(`${path}/default-config.yaml`, 'utf-8'));
 
     if (fsx.existsSync('config.yaml'))
-        Object.assign(settings, yaml.safeLoad(fsx.readFileSync(`${path}/config.yaml`)));
+        Object.assign(settings, yaml.safeLoad(fsx.readFileSync(`${path}/config.yaml`, 'utf-8')));
     return settings;
 }
 
@@ -42,12 +43,7 @@ function readSettings(path) {
  * @param fname {String} - the name of the file
  * @returns {string[]}
  */
-function getFileLines(fname) {
+export function getFileLines(fname: string) {
+    // @ts-ignore
     return fsx.readFileSync(fname).toString().replaceAll('\r\n', '\n').split('\n');
 }
-
-Object.assign(exports, {
-    parseSqlYaml: parseSqlYaml,
-    readSettings: readSettings,
-    getFileLines: getFileLines
-});

@@ -1,21 +1,24 @@
 #!/usr/bin/env node
 
+import {Server} from 'http';
+import * as yaml from 'js-yaml';
+import * as fsx from 'fs-extra';
+
+import App from './app';
+
 /**
  * Module dependencies.
  */
 
-const appInit = require('../app');
 const debug = require('debug')('whooshy:server');
-const yaml = require('js-yaml');
-const fsx = require('fs-extra');
 
-let settings = {};
+let settings: any = {};
 
 try {
-    settings = yaml.safeLoad(fsx.readFileSync('default-config.yaml'));
+    settings = yaml.safeLoad(fsx.readFileSync('default-config.yaml', 'utf-8'));
 
     if (fsx.existsSync('config.yaml'))
-        Object.assign(settings, yaml.safeLoad(fsx.readFileSync('config.yaml')));
+        Object.assign(settings, yaml.safeLoad(fsx.readFileSync('config.yaml', 'utf-8')));
 } catch (err) {
     console.error(err);
 }
@@ -25,8 +28,11 @@ try {
  */
 
 let port = normalizePort(process.env.PORT || settings.port || '3000');
+let webApp = new App();
 
-appInit().then(([app, server]) => {
+webApp.init().then(() => {
+    let app = webApp.app;
+    let server = webApp.server;
     app.set('port', port);
 
     /**
@@ -45,7 +51,7 @@ appInit().then(([app, server]) => {
     console.error(err.stack);
 });
 
-function normalizePort(val) {
+function normalizePort(val: string) {
     let port = parseInt(val, 10);
 
     if (isNaN(port))
@@ -63,7 +69,7 @@ function normalizePort(val) {
  * Event listener for HTTP server "error" event.
  */
 
-function onError(error) {
+function onError(error: any) {
     if (error.syscall !== 'listen')
         throw error;
 
@@ -90,7 +96,7 @@ function onError(error) {
  * Event listener for HTTP server "listening" event.
  */
 
-function onListening(server) {
+function onListening(server: Server) {
     let addr = server.address();
     let bind = typeof addr === 'string'
         ? 'pipe ' + addr
