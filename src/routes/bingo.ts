@@ -1,4 +1,5 @@
 import {Router} from 'express';
+import {Namespace} from 'socket.io';
 import {GraphQLError} from "graphql";
 import * as markdownIt from 'markdown-it';
 
@@ -6,27 +7,33 @@ import * as utils from '../lib/utils';
 import globals from '../lib/globals';
 import Route from '../lib/Route';
 
-import * as wrappers from '../lib/bingo-wrappers';
+import * as wrappers from '../lib/bingo/bingo-wrappers';
+import {BingoSql} from "../lib/db/BingoSql";
+import {pgPool} from "../lib/db";
 
 let mdEmoji = require('markdown-it-emoji');
 let mdMark = require('markdown-it-mark');
 let mdSmartarrows = require('markdown-it-smartarrows');
 
-const pgPool = globals.pgPool;
-
-
 class BingoRoute extends Route {
+    bingoSql: BingoSql;
+
     constructor() {
         super();
         this.router = Router();
-        this.resolver = this.getResolver();
+        this.bingoSql = new BingoSql(pgPool);
     }
 
     /**
      * Inits the Route
      */
-    public async init() {
-
+    public async init(ioNamespace: Namespace) {
+        this.ions = ioNamespace;
+        this.ions.on('connection', (socket) => {
+            socket.on('joinChat', (lobbyId: number) => {
+                socket.join(`lobby-${lobbyId}`);
+            });
+        });
     }
 
     /**
@@ -37,14 +44,18 @@ class BingoRoute extends Route {
         this.resolver = null;
     }
 
-    private getResolver(): object {
-        return async (req: any, res: any) => {
-            let playerId = req.session.bingoPlayerId;
-            return {
-                player: () => {
-                    return playerId;
-                }
-            };
+    /**
+     * Graphql resolver function
+     * @param req
+     * @param res
+     */
+    public async resolver(req: any, res: any): Promise<object> {
+        let playerId = req.session.bingoPlayerId;
+
+        return await {
+            player: () => {
+                return playerId;
+            }
         };
     }
 }

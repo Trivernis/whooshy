@@ -3,7 +3,7 @@ import {Pool, PoolClient, QueryConfig, QueryResult} from "pg";
 
 const logger = globals.logger;
 
-class SqlTransaction {
+export class SqlTransaction {
     constructor(private client: PoolClient) {
     }
 
@@ -44,7 +44,7 @@ class SqlTransaction {
     }
 }
 
-class QueryHelper {
+export class QueryHelper {
     private pool: Pool;
 
     constructor(pgPool: Pool) {
@@ -96,4 +96,19 @@ class QueryHelper {
     }
 }
 
-export default QueryHelper
+/**
+ * Returns the parameterized value sql for inserting
+ * @param columnCount
+ * @param rowCount
+ * @param [offset]
+ */
+export function buildSqlParameters(columnCount: number, rowCount: number, offset?: number): string {
+    let sql = '';
+    for (let i = 0; i < rowCount; i++) {
+        sql += '(';
+        for (let j = 0; j < columnCount; j++)
+            sql += `$${(i*columnCount)+j+1+offset},`;
+        sql = sql.replace(/,$/, '') + '),';
+    }
+    return sql.replace(/,$/, '');
+}
