@@ -55,6 +55,9 @@ class BingoRoute extends Route {
         return await {
             player: () => {
                 return playerId;
+            },
+            mutateLobby: async ({id}) => {
+                throw new Error('Not implemented');
             }
         };
     }
