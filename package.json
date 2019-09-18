@@ -35,7 +35,7 @@
     "eslint": "6.1.0",
     "eslint-plugin-graphql": "3.0.3",
     "eslint-plugin-promise": "4.2.1",
-    "standard": "13.1.0"
+    "standard": "14.3.1"
   },
   "eslintConfig": {
     "parserOptions": {
