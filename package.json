@@ -28,7 +28,7 @@
     "node-sass": "4.13.0",
     "pg": "7.11.0",
     "pug": "2.0.4",
-    "socket.io": "2.2.0",
+    "socket.io": "2.3.0",
     "uglify-es": "3.3.9"
   },
   "devDependencies": {
